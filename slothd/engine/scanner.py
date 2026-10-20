@@ -266,7 +266,7 @@ def scan_directory(
                 continue
             if item.stat().st_size == 0:
                 continue
-        except (OSError, PermissionError):
+        except OSError:
             continue
 
         try:

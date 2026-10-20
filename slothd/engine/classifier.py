@@ -96,7 +96,8 @@ def extract_pdf_content(path: Path) -> tuple[str, bytes | None]:
         return "", None
 
     page = doc[0]
-    text = page.get_text().strip()
+    raw = page.get_text()  # default "text" mode always returns str
+    text = str(raw).strip()
 
     png_bytes = None
     if len(text) < 50:
