@@ -146,6 +146,13 @@ class TestSentryTracing:
         with trace_span(op="test.op", description="testing span", data={"key": "val"}) as span:
             assert span is not None
 
+    def test_trace_span_exception_propagation(self) -> None:
+        import pytest
+
+        with pytest.raises(ZeroDivisionError):
+            with trace_span(op="test.op", description="testing error"):
+                _ = 1 / 0
+
     def test_capture_exception_safe(self) -> None:
         capture_exception(RuntimeError("Test error"))
 

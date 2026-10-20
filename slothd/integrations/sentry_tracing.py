@@ -50,17 +50,14 @@ def trace_span(
     If Sentry is not configured, silently yields a dummy span.
     """
     if _SENTRY_INITIALIZED:
-        try:
-            import sentry_sdk
+        import sentry_sdk
 
-            with sentry_sdk.start_span(op=op, description=description) as span:
-                if data:
-                    for k, v in data.items():
-                        span.set_data(k, v)
-                yield span
-                return
-        except Exception as e:
-            logger.debug("Sentry span recording failed: %s", e)
+        with sentry_sdk.start_span(op=op, name=description) as span:
+            if data:
+                for k, v in data.items():
+                    span.set_data(k, v)
+            yield span
+        return
 
     # Fallback dummy span
     class DummySpan:
