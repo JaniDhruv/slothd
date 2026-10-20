@@ -223,22 +223,35 @@ def _classify_image(
     model: str,
     schema: dict,
 ) -> FileClassification:
-    """Classify an image file using Gemma 3 Vision."""
-    img_b64 = read_image_as_base64(scanned_file.path)
-
-    response = client.chat(
-        model=model,
-        messages=[
-            {
-                "role": "user",
-                "content": VISION_PROMPT,
-                "images": [img_b64],
-            }
-        ],
-        format=schema,
-    )
-
-    return FileClassification.model_validate_json(response.message.content)
+    """Classify an image file using local Vision model or text metadata fallback."""
+    try:
+        img_b64 = read_image_as_base64(scanned_file.path)
+        response = client.chat(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": VISION_PROMPT,
+                    "images": [img_b64],
+                }
+            ],
+            format=schema,
+        )
+        return FileClassification.model_validate_json(response.message.content)
+    except Exception as e:
+        logger.debug("Vision chat failed (model %s may be text-only), using metadata fallback: %s", model, e)
+        prompt = TEXT_PROMPT_TEMPLATE.format(
+            filename=scanned_file.name,
+            extension=scanned_file.extension,
+            size_mb=scanned_file.size_mb,
+            content_preview=f"Image file ({scanned_file.extension}) named '{scanned_file.name}'",
+        )
+        response = client.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            format=schema,
+        )
+        return FileClassification.model_validate_json(response.message.content)
 
 
 def _classify_pdf(
@@ -251,33 +264,36 @@ def _classify_pdf(
     text, png_bytes = extract_pdf_content(scanned_file.path)
 
     if png_bytes is not None:
-        # Scanned PDF — use vision
-        img_b64 = base64.b64encode(png_bytes).decode("utf-8")
-        response = client.chat(
-            model=model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": VISION_PROMPT,
-                    "images": [img_b64],
-                }
-            ],
-            format=schema,
-        )
-    else:
-        # Digital PDF with text
-        prompt = TEXT_PROMPT_TEMPLATE.format(
-            filename=scanned_file.name,
-            extension=scanned_file.extension,
-            size_mb=scanned_file.size_mb,
-            content_preview=text[:2000],
-        )
-        response = client.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            format=schema,
-        )
+        try:
+            # Scanned PDF — try vision first
+            img_b64 = base64.b64encode(png_bytes).decode("utf-8")
+            response = client.chat(
+                model=model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": VISION_PROMPT,
+                        "images": [img_b64],
+                    }
+                ],
+                format=schema,
+            )
+            return FileClassification.model_validate_json(response.message.content)
+        except Exception as e:
+            logger.debug("Vision PDF classification failed, falling back to text prompt: %s", e)
 
+    # Digital PDF with text (or vision fallback)
+    prompt = TEXT_PROMPT_TEMPLATE.format(
+        filename=scanned_file.name,
+        extension=scanned_file.extension,
+        size_mb=scanned_file.size_mb,
+        content_preview=(text or f"PDF document named '{scanned_file.name}'")[:2000],
+    )
+    response = client.chat(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        format=schema,
+    )
     return FileClassification.model_validate_json(response.message.content)
 
 
