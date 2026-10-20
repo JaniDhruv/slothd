@@ -422,37 +422,130 @@ function initHistoryAndUndo() {
 
 async function loadHistory() {
     const tbody = document.getElementById("history-batches-tbody");
-    if (!tbody) return;
+    const timelineEl = document.getElementById("activity-timeline");
+    const modal = document.getElementById("batch-details-modal");
+    const closeModalBtn = document.getElementById("btn-close-batch-modal");
+
+    if (closeModalBtn && modal) {
+        closeModalBtn.onclick = () => modal.classList.add("hidden");
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.classList.add("hidden");
+        };
+    }
 
     try {
         const res = await fetch("/api/recent");
         if (!res.ok) return;
         const data = await res.json();
 
-        tbody.innerHTML = "";
         const batches = data.recent_batches || [];
 
-        if (batches.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No batches recorded in SQLite log yet.</td></tr>`;
+        // 1. Render Table
+        if (tbody) {
+            tbody.innerHTML = "";
+            if (batches.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No batches recorded in SQLite log yet.</td></tr>`;
+            } else {
+                batches.forEach(b => {
+                    const tr = document.createElement("tr");
+                    const statusBadge = b.undone
+                        ? `<span class="badge" style="background: rgba(244, 63, 94, 0.15); color: var(--rose-error);">Undone</span>`
+                        : `<span class="badge badge-emerald">Active</span>`;
+
+                    tr.innerHTML = `
+                        <td><span class="mono-path">${escapeHtml(b.batch_id)}</span></td>
+                        <td><strong>${b.file_count}</strong> files</td>
+                        <td>${escapeHtml(b.created_at)}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="btn btn-outline btn-sm btn-inspect" data-batch="${escapeHtml(b.batch_id)}">Inspect</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                tbody.querySelectorAll(".btn-inspect").forEach(btn => {
+                    btn.addEventListener("click", () => inspectBatch(btn.getAttribute("data-batch")));
+                });
+            }
+        }
+
+        // 2. Render Timeline Cards
+        if (timelineEl) {
+            timelineEl.innerHTML = "";
+            if (batches.length === 0) {
+                timelineEl.innerHTML = `<div class="empty-state">No operations in timeline yet. Run an organize job to see history!</div>`;
+            } else {
+                batches.forEach(b => {
+                    const card = document.createElement("div");
+                    card.className = `timeline-card ${b.undone ? "undone" : ""}`;
+
+                    const statusBadge = b.undone
+                        ? `<span class="badge" style="background: rgba(244, 63, 94, 0.15); color: var(--rose-error);">Undone</span>`
+                        : `<span class="badge badge-emerald">Active</span>`;
+
+                    card.innerHTML = `
+                        <div class="timeline-card-header">
+                            <span class="timeline-batch-id">${escapeHtml(b.batch_id.slice(0, 16))}...</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="timeline-card-body">
+                            <span class="timeline-file-count">${b.file_count}</span>
+                            <span class="timeline-file-label">files organized</span>
+                        </div>
+                        <div class="timeline-card-footer">
+                            <span class="timeline-time">${escapeHtml(b.created_at.split("T")[0] || b.created_at)}</span>
+                            <button class="btn btn-outline btn-inspect-batch" data-batch="${escapeHtml(b.batch_id)}">Inspect</button>
+                        </div>
+                    `;
+                    timelineEl.appendChild(card);
+                });
+
+                timelineEl.querySelectorAll(".btn-inspect-batch").forEach(btn => {
+                    btn.addEventListener("click", () => inspectBatch(btn.getAttribute("data-batch")));
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Error loading history:", err);
+    }
+}
+
+async function inspectBatch(batchId) {
+    const modal = document.getElementById("batch-details-modal");
+    const titleEl = document.getElementById("modal-batch-title");
+    const subEl = document.getElementById("modal-batch-subtitle");
+    const tbody = document.getElementById("modal-batch-tbody");
+
+    if (!modal || !tbody) return;
+
+    titleEl.textContent = `Batch Manifest`;
+    subEl.textContent = `Batch ID: ${batchId}`;
+    tbody.innerHTML = `<tr><td colspan="2" class="empty-state">Loading moves...</td></tr>`;
+    modal.classList.remove("hidden");
+
+    try {
+        const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}`);
+        if (!res.ok) throw new Error("Failed to load batch details");
+        const data = await res.json();
+        const ops = data.operations || [];
+
+        tbody.innerHTML = "";
+        if (ops.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="2" class="empty-state">No file moves logged for this batch.</td></tr>`;
             return;
         }
 
-        batches.forEach(b => {
+        ops.forEach(op => {
             const tr = document.createElement("tr");
-            const statusBadge = b.undone
-                ? `<span class="badge" style="background: rgba(244, 63, 94, 0.15); color: var(--rose-error);">Undone</span>`
-                : `<span class="badge badge-emerald">Active</span>`;
-
             tr.innerHTML = `
-                <td><span class="mono-path">${escapeHtml(b.batch_id)}</span></td>
-                <td><strong>${b.file_count}</strong> files</td>
-                <td>${escapeHtml(b.created_at)}</td>
-                <td>${statusBadge}</td>
+                <td><span class="mono-path">${escapeHtml(op.source)}</span></td>
+                <td><span class="mono-path" style="color: var(--sloth-emerald);">${escapeHtml(op.destination)}</span></td>
             `;
             tbody.appendChild(tr);
         });
     } catch (err) {
-        console.error("Error loading history:", err);
+        tbody.innerHTML = `<tr><td colspan="2" class="empty-state" style="color: var(--rose-error);">Error: ${escapeHtml(err.message)}</td></tr>`;
     }
 }
 

@@ -215,6 +215,17 @@
                     <button id="btn-undo-history" class="btn btn-outline">↺ Undo Most Recent Batch</button>
                 </div>
 
+                <!-- Visual Activity Timeline -->
+                <div class="timeline-container">
+                    <div class="timeline-header">
+                        <span class="timeline-icon">⏳</span>
+                        <span class="timeline-title">Interactive Activity Timeline</span>
+                    </div>
+                    <div id="activity-timeline" class="activity-timeline">
+                        <div class="empty-state">Loading activity timeline...</div>
+                    </div>
+                </div>
+
                 <div class="table-wrapper">
                     <table class="data-table" id="history-batches-table">
                         <thead>
@@ -223,14 +234,41 @@
                                 <th>Files Moved</th>
                                 <th>Timestamp</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="history-batches-tbody">
                             <tr>
-                                <td colspan="4" class="empty-state">Loading history...</td>
+                                <td colspan="5" class="empty-state">Loading history...</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Batch Details Inspection Modal -->
+                <div id="batch-details-modal" class="modal-overlay hidden">
+                    <div class="modal-card glass-panel">
+                        <div class="modal-header">
+                            <div>
+                                <h3 id="modal-batch-title">Batch Move Manifest</h3>
+                                <p id="modal-batch-subtitle" class="mono-path text-muted"></p>
+                            </div>
+                            <button id="btn-close-batch-modal" class="btn btn-outline btn-sm">✕ Close</button>
+                        </div>
+                        <div class="table-wrapper modal-table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Original Source</th>
+                                        <th>Organized Destination</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-batch-tbody">
+                                    <tr><td colspan="2" class="empty-state">Loading moves...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </section>
 

@@ -246,6 +246,23 @@ def get_recent_history(limit: int = Query(default=10, ge=1, le=50)) -> dict[str,
     return {"recent_batches": batches}
 
 
+@router.get("/batch/{batch_id}")
+def get_batch_details(batch_id: str) -> dict[str, Any]:
+    """Get detailed file operations for a specific batch."""
+    cfg = SlothdConfig.from_env()
+    ops_log = OperationLog(cfg.ops_db_path)
+    operations = ops_log.get_batch_operations(batch_id)
+    ops_log.close()
+
+    return {
+        "batch_id": batch_id,
+        "operations": [
+            {"source": old_path, "destination": new_path}
+            for old_path, new_path in operations
+        ],
+    }
+
+
 @router.post("/search")
 def search_files(req: SearchRequest) -> dict[str, Any]:
     """Semantic query search across all indexed files."""

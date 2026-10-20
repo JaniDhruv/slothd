@@ -93,6 +93,14 @@ def test_recent_batches_endpoint(client: TestClient) -> None:
     assert "recent_batches" in data
 
 
+def test_batch_details_endpoint(client: TestClient) -> None:
+    res = client.get("/api/batch/non_existent_batch_id")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["batch_id"] == "non_existent_batch_id"
+    assert data["operations"] == []
+
+
 def test_briefing_endpoints(client: TestClient) -> None:
     with patch("slothd.web.routes.scan_directory", return_value=[]):
         # Briefing metadata
