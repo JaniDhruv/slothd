@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import ollama
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from slothd.engine.scanner import ScannedFile
 from slothd.integrations.sentry_tracing import capture_exception, trace_span
@@ -66,6 +66,18 @@ class FileClassification(BaseModel):
         default_factory=list,
         description="Relevant tags for search indexing",
     )
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def normalize_confidence(cls, v: Any) -> float:
+        """Convert percentage (e.g. 95) to float (0.95) if needed."""
+        try:
+            val = float(v)
+            if val > 1.0:
+                val = val / 100.0
+            return max(0.0, min(1.0, val))
+        except (ValueError, TypeError):
+            return 1.0
 
 
 # --------------------------------------------------------------------------- #

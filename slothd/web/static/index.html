@@ -140,10 +140,16 @@
             <section id="tab-preview" class="tab-pane glass-panel">
                 <div class="pane-header">
                     <div>
-                        <h2>Gemma 3 AI Move Preview</h2>
-                        <p class="text-secondary">Dry-run simulation: Gemma reads receipts, PDFs & images and proposes clean structured destinations.</p>
+                        <h2>Local AI Move Preview</h2>
+                        <p class="text-secondary">Dry-run simulation: Llama / Gemma reads receipts, PDFs & images and proposes clean structured destinations.</p>
                     </div>
-                    <div class="preview-actions">
+                    <div class="path-input-group preview-controls-group">
+                        <input type="text" id="preview-path-input" placeholder="test_workspace/messy_inbox" class="text-input" style="min-width: 240px;">
+                        <select id="preview-batch-size" class="text-input" style="width: auto; padding: 8px 12px;" title="Number of files to process per batch">
+                            <option value="5" selected>5 files (Fast)</option>
+                            <option value="10">10 files</option>
+                            <option value="20">20 files</option>
+                        </select>
                         <button id="btn-generate-preview" class="btn btn-secondary">
                             <span>✨</span> Generate AI Plan
                         </button>

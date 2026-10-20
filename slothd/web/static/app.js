@@ -203,19 +203,38 @@ function initPreviewAndApprove() {
     const tbody = document.getElementById("preview-moves-tbody");
     const banner = document.getElementById("preview-banner");
     const bannerText = document.getElementById("preview-banner-text");
+    const previewPathInput = document.getElementById("preview-path-input");
+    const batchSizeSelect = document.getElementById("preview-batch-size");
+    const scanPathInput = document.getElementById("scan-path-input");
+
+    // Automatically sync path from scanner tab if empty
+    if (previewPathInput && scanPathInput) {
+        scanPathInput.addEventListener("input", () => {
+            if (!previewPathInput.value || previewPathInput.value === "test_workspace/messy_inbox") {
+                previewPathInput.value = scanPathInput.value;
+            }
+        });
+    }
 
     let currentPlannedMoves = [];
+    let lastTargetPath = null;
 
     async function generatePlan() {
+        const rawPath = (previewPathInput && previewPathInput.value.trim()) ||
+                        (scanPathInput && scanPathInput.value.trim()) ||
+                        "test_workspace/messy_inbox";
+        const batchSize = batchSizeSelect ? parseInt(batchSizeSelect.value, 10) : 5;
+        lastTargetPath = rawPath;
+
         genBtn.disabled = true;
-        genBtn.innerHTML = `<span>⏳</span> Analyzing with Gemma 3...`;
+        genBtn.innerHTML = `<span>⏳</span> Analyzing with Local AI...`;
         approveBtn.disabled = true;
 
         try {
             const res = await fetch("/api/preview", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ batch_size: 20 }),
+                body: JSON.stringify({ path: rawPath, batch_size: batchSize }),
             });
 
             if (!res.ok) {
@@ -246,9 +265,9 @@ function initPreviewAndApprove() {
             });
 
             banner.style.display = "flex";
-            bannerText.textContent = `Gemma 3 planned ${currentPlannedMoves.length} moves. Review the destinations below and click "Approve & Move Files".`;
+            bannerText.textContent = `Local AI planned ${currentPlannedMoves.length} moves. Review the destinations below and click "Approve & Move Files".`;
             approveBtn.disabled = false;
-            showToast(`Gemma 3 generated plan for ${currentPlannedMoves.length} files`, "success");
+            showToast(`Generated AI plan for ${currentPlannedMoves.length} files`, "success");
         } catch (err) {
             showToast(err.message, "error");
         } finally {
@@ -270,12 +289,13 @@ function initPreviewAndApprove() {
     approveBtn.addEventListener("click", async () => {
         approveBtn.disabled = true;
         approveBtn.innerHTML = `<span>⏳</span> Moving files...`;
+        const batchSize = batchSizeSelect ? parseInt(batchSizeSelect.value, 10) : 5;
 
         try {
             const res = await fetch("/api/execute", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ batch_size: 20 }),
+                body: JSON.stringify({ path: lastTargetPath, batch_size: batchSize }),
             });
 
             if (!res.ok) {
