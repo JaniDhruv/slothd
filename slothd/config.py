@@ -93,7 +93,14 @@ class SlothdConfig(BaseModel):
 
     @classmethod
     def from_env(cls) -> SlothdConfig:
-        """Load configuration from environment variables."""
+        """Load configuration from environment variables (including .env file)."""
+        try:
+            from dotenv import load_dotenv
+
+            load_dotenv()
+        except ImportError:
+            pass
+
         kwargs: dict = {}
         if target := os.getenv("SLOTHD_TARGET_DIRS"):
             kwargs["target_dirs"] = [Path(p.strip()) for p in target.split(",")]
