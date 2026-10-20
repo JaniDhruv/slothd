@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com)
-[![Ollama & Gemma 3](https://img.shields.io/badge/Local%20AI-Gemma%203%20Vision-indigo.svg)](https://ollama.com)
+[![Ollama & Gemma 4](https://img.shields.io/badge/Local%20AI-Gemma%204%20%7C%20Llama-indigo.svg)](https://ollama.com)
 [![Tiger Data](https://img.shields.io/badge/Vector%20DB-Tiger%20Data%20pgvector-cyan.svg)](https://tigerdata.vn)
 [![Sentry](https://img.shields.io/badge/Observability-Sentry%20Tracing-purple.svg)](https://sentry.io)
 [![ElevenLabs](https://img.shields.io/badge/Audio-ElevenLabs%20TTS-orange.svg)](https://elevenlabs.io)
@@ -24,8 +24,8 @@ Traditional file organizers either:
 
 **`slothd` changes this paradigm completely:**
 - 💤 **Runs only when you're resting:** Uses native OS idle detection (Win32 `GetLastInputInfo` / cross-platform scheduler). It will *never* steal your CPU while you're working.
-- 🔒 **100% Air-Gapped & Private:** Powered by Google's **Gemma 3 Vision** via local Ollama. Your documents and receipts never leave your physical hard drive.
-- 📐 **Grammar-Enforced Structured Outputs:** Forces Gemma 3 to return strict Pydantic JSON schemas directly at the token level—zero markdown hallucination or JSON parsing errors.
+- 🔒 **100% Air-Gapped & Private:** Powered by **Gemma 4** (or **Llama 3.2**) via local Ollama. Your documents and receipts never leave your physical hard drive.
+- 📐 **Grammar-Enforced Structured Outputs:** Forces local vision models to return strict Pydantic JSON schemas directly at the token level—zero markdown hallucination or JSON parsing errors.
 - 🐯 **"Where is my...?" Semantic Search:** Indexed with 768-dimensional `nomic-embed-text` embeddings into **Tiger Data pgvector** with local SQLite fallback.
 - ↺ **Senior-Level Undo Guarantee:** Every single move is logged to an atomic SQLite transaction database. You can reverse any batch instantly with `slothd undo`.
 - 🎙️ **Witty Sloth Voice Briefings:** Powered by **ElevenLabs**, giving you a warm audio summary when you return to your computer.
