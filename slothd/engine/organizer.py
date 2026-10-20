@@ -353,7 +353,7 @@ def execute_moves(
 
             logger.info("Moved: %s → %s", move.source.name, final_dest)
 
-        except (OSError, shutil.Error) as e:
+        except OSError as e:
             logger.error("Failed to move %s: %s", move.source, e)
 
     # Log the batch
@@ -395,7 +395,7 @@ def undo_last_batch(ops_log: OperationLog) -> int:
             shutil.move(str(new_path), str(old_path))
             restored += 1
             logger.info("Restored: %s → %s", new_path.name, old_path)
-        except (OSError, shutil.Error) as e:
+        except OSError as e:
             logger.error("Failed to restore %s: %s", new_path, e)
 
     ops_log.mark_batch_undone(batch_id)
