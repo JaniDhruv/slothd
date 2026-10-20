@@ -17,6 +17,7 @@ import ollama
 from pydantic import BaseModel, Field
 
 from slothd.engine.scanner import ScannedFile
+from slothd.integrations.sentry_tracing import capture_exception, trace_span
 
 logger = logging.getLogger(__name__)
 
@@ -202,12 +203,18 @@ def classify_file(
     client = ollama.Client(host=ollama_host)
     schema = FileClassification.model_json_schema()
 
-    if scanned_file.is_image:
-        return _classify_image(client, scanned_file, model, schema)
-    elif scanned_file.is_pdf:
-        return _classify_pdf(client, scanned_file, model, schema)
-    else:
-        return _classify_text(client, scanned_file, model, schema)
+    file_type = "image" if scanned_file.is_image else ("pdf" if scanned_file.is_pdf else "text")
+    with trace_span(
+        op="ai.classify",
+        description=f"Gemma 3 classify: {scanned_file.name}",
+        data={"file_name": scanned_file.name, "file_type": file_type, "model": model},
+    ):
+        if scanned_file.is_image:
+            return _classify_image(client, scanned_file, model, schema)
+        elif scanned_file.is_pdf:
+            return _classify_pdf(client, scanned_file, model, schema)
+        else:
+            return _classify_text(client, scanned_file, model, schema)
 
 
 def _classify_image(
@@ -340,20 +347,26 @@ def classify_batch(
     """
     results: list[tuple[ScannedFile, FileClassification]] = []
 
-    for scanned_file in files[:batch_size]:
-        try:
-            classification = classify_file(
-                scanned_file,
-                ollama_host=ollama_host,
-                model=model,
-            )
-            apply_classification(scanned_file, classification)
-            results.append((scanned_file, classification))
-            logger.info("Classified: %s → %s", scanned_file.name, classification.category)
-        except Exception as e:
-            logger.warning("Failed to classify %s: %s", scanned_file.name, e)
-            # Fall back to extension-based classification
-            scanned_file.ai_category = scanned_file.basic_category
-            scanned_file.ai_confidence = 0.0
+    with trace_span(
+        op="ai.classify_batch",
+        description=f"Gemma 3 batch classify ({min(len(files), batch_size)} files)",
+        data={"batch_size": batch_size, "total_files": len(files), "model": model},
+    ):
+        for scanned_file in files[:batch_size]:
+            try:
+                classification = classify_file(
+                    scanned_file,
+                    ollama_host=ollama_host,
+                    model=model,
+                )
+                apply_classification(scanned_file, classification)
+                results.append((scanned_file, classification))
+                logger.info("Classified: %s → %s", scanned_file.name, classification.category)
+            except Exception as e:
+                capture_exception(e)
+                logger.warning("Failed to classify %s: %s", scanned_file.name, e)
+                # Fall back to extension-based classification
+                scanned_file.ai_category = scanned_file.basic_category
+                scanned_file.ai_confidence = 0.0
 
     return results
