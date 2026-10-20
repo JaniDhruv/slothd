@@ -18,14 +18,6 @@ import sys
 import uuid
 from pathlib import Path
 
-# Ensure UTF-8 encoding on Windows PowerShell / cmd
-if hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -33,6 +25,15 @@ from rich.table import Table
 
 from slothd import __version__
 from slothd.config import SlothdConfig
+
+# Ensure UTF-8 encoding on Windows PowerShell / cmd
+for stream in (sys.stdout, sys.stderr):
+    reconfigure_fn = getattr(stream, "reconfigure", None)
+    if callable(reconfigure_fn):
+        try:
+            reconfigure_fn(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
 
 console = Console()
 
