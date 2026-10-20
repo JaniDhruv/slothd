@@ -70,12 +70,14 @@ class FileClassification(BaseModel):
     @field_validator("confidence", mode="before")
     @classmethod
     def normalize_confidence(cls, v: Any) -> float:
-        """Convert percentage (e.g. 95) to float (0.95) if needed."""
+        """Convert percentage (e.g. 95 or '95%') to float (0.95) if needed."""
         try:
+            if isinstance(v, str) and "%" in v:
+                v = v.replace("%", "").strip()
             val = float(v)
-            if val > 1.0:
+            if val > 1.0 and val <= 100.0 and (isinstance(v, int) or (isinstance(v, str) and "." not in v)):
                 val = val / 100.0
-            return max(0.0, min(1.0, val))
+            return val
         except (ValueError, TypeError):
             return 1.0
 

@@ -15,12 +15,13 @@ from slothd.daemon.idle_detector import get_idle_ms, is_idle
 from slothd.engine.classifier import classify_batch
 from slothd.engine.organizer import (
     OperationLog,
+    PlannedMove,
     execute_moves,
     plan_moves,
     undo_last_batch,
 )
 from slothd.engine.scanner import group_by_category, scan_directory
-from slothd.engine.search import SearchEngine
+from slothd.engine.search import SearchEngine, generate_embedding
 from slothd.integrations.elevenlabs import (
     ElevenLabsClient,
     generate_briefing_script,
@@ -49,6 +50,9 @@ class PreviewRequest(BaseModel):
 class ExecuteRequest(BaseModel):
     path: str | None = Field(default=None, description="Directory path to organize")
     batch_size: int = Field(default=20, ge=1, le=100)
+    moves: list[dict[str, Any]] | None = Field(
+        default=None, description="Pre-approved planned moves to execute immediately"
+    )
 
 
 class SearchRequest(BaseModel):
@@ -146,7 +150,7 @@ def preview_organization(req: PreviewRequest) -> dict[str, Any]:
         files = scan_directory(target_path)
         batch = files[: req.batch_size]
 
-        # Classify batch with Gemma 3
+        # Classify batch with local AI model
         classify_batch(
             batch,
             ollama_host=cfg.ollama_host,
@@ -170,9 +174,6 @@ def execute_organization(req: ExecuteRequest) -> dict[str, Any]:
     cfg = SlothdConfig.from_env()
     target_path = Path(req.path) if req.path else cfg.target_dirs[0]
 
-    if not target_path.exists():
-        raise HTTPException(status_code=404, detail=f"Directory '{target_path}' does not exist")
-
     ops_log = OperationLog(cfg.ops_db_path)
     search_engine = SearchEngine(
         db_url=cfg.db_url,
@@ -183,6 +184,59 @@ def execute_organization(req: ExecuteRequest) -> dict[str, Any]:
     batch_id = f"batch_{uuid.uuid4().hex[:8]}"
 
     with trace_span(op="organizer.execute", description=f"Batch {batch_id}"):
+        # Fast path: Execute pre-approved moves directly in milliseconds
+        if req.moves:
+            planned_moves: list[PlannedMove] = []
+            for m in req.moves:
+                src = Path(m["source"])
+                dst = Path(m["destination"])
+                if src.exists():
+                    planned_moves.append(
+                        PlannedMove(
+                            source=src,
+                            destination=dst,
+                            file_name=m.get("file_name") or src.name,
+                            category=m.get("category", "General"),
+                            reason=m.get("reason", "Approved move"),
+                        )
+                    )
+
+            executed = execute_moves(planned_moves, ops_log, batch_id)
+
+            # Fast index in local search index
+            for m in executed:
+                try:
+                    vec = generate_embedding(
+                        f"Filename: {m.file_name}\nCategory: {m.category}\nReason: {m.reason}",
+                        ollama_host=cfg.ollama_host,
+                        embed_model=cfg.embed_model,
+                    )
+                    search_engine.local_index.index_file(
+                        file_path=m.destination,
+                        file_name=m.file_name,
+                        category=m.category,
+                        subcategory=None,
+                        description=m.reason,
+                        vendor=None,
+                        file_date=None,
+                        tags=[],
+                        embedding=vec,
+                    )
+                except Exception as e:
+                    logger.debug("Quick index failed for %s: %s", m.file_name, e)
+
+            ops_log.close()
+            return {
+                "batch_id": batch_id,
+                "executed_count": len(executed),
+                "moves": [m.to_dict() for m in executed],
+            }
+
+        # Fallback path if moves were not pre-planned
+        if not target_path.exists():
+            ops_log.close()
+            raise HTTPException(status_code=404, detail=f"Directory '{target_path}' does not exist")
+
         files = scan_directory(target_path)
         batch = files[: req.batch_size]
 

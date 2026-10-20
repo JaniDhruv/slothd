@@ -287,6 +287,11 @@ function initPreviewAndApprove() {
     }
 
     approveBtn.addEventListener("click", async () => {
+        if (!currentPlannedMoves || currentPlannedMoves.length === 0) {
+            showToast("No planned moves to execute. Generate a plan first.", "warning");
+            return;
+        }
+
         approveBtn.disabled = true;
         approveBtn.innerHTML = `<span>⏳</span> Moving files...`;
         const batchSize = batchSizeSelect ? parseInt(batchSizeSelect.value, 10) : 5;
@@ -295,7 +300,11 @@ function initPreviewAndApprove() {
             const res = await fetch("/api/execute", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ path: lastTargetPath, batch_size: batchSize }),
+                body: JSON.stringify({
+                    path: lastTargetPath,
+                    batch_size: batchSize,
+                    moves: currentPlannedMoves,
+                }),
             });
 
             if (!res.ok) {
@@ -309,6 +318,7 @@ function initPreviewAndApprove() {
             // Clear table and update stats
             tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Batch completed! All ${data.executed_count} files moved to destination folders.</td></tr>`;
             banner.style.display = "none";
+            currentPlannedMoves = [];
             fetchStats();
             loadHistory();
         } catch (err) {

@@ -88,7 +88,7 @@ class OperationLog:
     def get_last_batch(self) -> str | None:
         """Get the most recent non-undone batch ID."""
         cursor = self.conn.execute(
-            "SELECT batch_id FROM batches WHERE undone = 0 ORDER BY created_at DESC LIMIT 1"
+            "SELECT batch_id FROM batches WHERE undone = 0 ORDER BY created_at DESC, rowid DESC LIMIT 1"
         )
         row = cursor.fetchone()
         return row[0] if row else None
@@ -96,7 +96,7 @@ class OperationLog:
     def get_batch_operations(self, batch_id: str) -> list[tuple[str, str]]:
         """Get all operations in a batch as (old_path, new_path) tuples."""
         cursor = self.conn.execute(
-            "SELECT old_path, new_path FROM operations WHERE batch_id = ? AND undone = 0",
+            "SELECT old_path, new_path FROM operations WHERE batch_id = ? AND undone = 0 ORDER BY id ASC",
             (batch_id,),
         )
         return cursor.fetchall()
@@ -111,7 +111,7 @@ class OperationLog:
         """Get recent batches for the dashboard."""
         cursor = self.conn.execute(
             "SELECT batch_id, file_count, created_at, undone FROM batches "
-            "ORDER BY created_at DESC LIMIT ?",
+            "ORDER BY created_at DESC, rowid DESC LIMIT ?",
             (limit,),
         )
         return [
