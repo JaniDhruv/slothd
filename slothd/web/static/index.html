@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>slothd — Local-First AI File Organizer</title>
+    <meta name="description" content="The Sloth Daemon: An air-gapped, local-first AI file tidier powered by Gemma 3 that runs while your system is idle.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <header class="navbar">
+            <div class="brand">
+                <span class="brand-icon">🦥</span>
+                <div>
+                    <h1 class="brand-title">slothd <span class="badge badge-primary">v0.1.0</span></h1>
+                    <p class="brand-subtitle">Local-First AI File Tidier • Gemma 3 • Tiger Data</p>
+                </div>
+            </div>
+
+            <div class="nav-controls">
+                <!-- Live Idle Status Indicator -->
+                <div id="idle-status-badge" class="status-pill status-active" title="System idle detection status">
+                    <span class="status-dot"></span>
+                    <span id="idle-status-text">Checking idle...</span>
+                </div>
+
+                <button id="btn-quick-undo" class="btn btn-outline" title="Rollback the most recent organize batch">
+                    <span class="btn-icon">↺</span> Undo Batch
+                </button>
+                <button id="btn-quick-organize" class="btn btn-primary" title="Preview or organize workspace">
+                    <span class="btn-icon">⚡</span> Run Organize
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Metric Grid -->
+        <section class="metrics-grid">
+            <div class="metric-card glass-panel">
+                <div class="metric-header">
+                    <span class="metric-label">Workspace Files</span>
+                    <span class="metric-badge">Monitored</span>
+                </div>
+                <div class="metric-value" id="stat-files-count">—</div>
+                <div class="metric-footer" id="stat-files-size">Loading size...</div>
+            </div>
+
+            <div class="metric-card glass-panel">
+                <div class="metric-header">
+                    <span class="metric-label">Organized Operations</span>
+                    <span class="metric-badge badge-emerald">SQLite Logged</span>
+                </div>
+                <div class="metric-value" id="stat-ops-count">—</div>
+                <div class="metric-footer" id="stat-batches-count">0 batches recorded</div>
+            </div>
+
+            <div class="metric-card glass-panel">
+                <div class="metric-header">
+                    <span class="metric-label">Gemma 3 Vision AI</span>
+                    <span class="metric-badge badge-violet">Air-Gapped</span>
+                </div>
+                <div class="metric-value" id="stat-model-name">gemma3</div>
+                <div class="metric-footer" id="stat-model-status">Ollama Local Inference</div>
+            </div>
+
+            <div class="metric-card glass-panel">
+                <div class="metric-header">
+                    <span class="metric-label">Tiger Data pgvector</span>
+                    <span class="metric-badge badge-cyan">Vector Search</span>
+                </div>
+                <div class="metric-value" id="stat-vector-count">768-dim</div>
+                <div class="metric-footer" id="stat-vector-status">nomic-embed-text</div>
+            </div>
+        </section>
+
+        <!-- Main Workspace Tabs -->
+        <main class="main-content">
+            <nav class="tab-bar">
+                <button class="tab-btn active" data-tab="tab-scanner">
+                    <span class="tab-icon">📂</span> Workspace Scanner
+                </button>
+                <button class="tab-btn" data-tab="tab-preview">
+                    <span class="tab-icon">🤖</span> AI Preview & Approve
+                </button>
+                <button class="tab-btn" data-tab="tab-search">
+                    <span class="tab-icon">🔍</span> Semantic Search
+                </button>
+                <button class="tab-btn" data-tab="tab-history">
+                    <span class="tab-icon">📜</span> History & Undo
+                </button>
+                <button class="tab-btn" data-tab="tab-briefing">
+                    <span class="tab-icon">🎙️</span> Sloth Audio Briefing
+                </button>
+            </nav>
+
+            <!-- TAB 1: Workspace Scanner -->
+            <section id="tab-scanner" class="tab-pane active glass-panel">
+                <div class="pane-header">
+                    <div>
+                        <h2>Target Directory Overview</h2>
+                        <p class="text-secondary">Scan messy folders (Downloads, Desktop) to see category breakdown before sorting.</p>
+                    </div>
+                    <div class="path-input-group">
+                        <input type="text" id="scan-path-input" placeholder="~/Downloads (leave empty for default)" class="text-input">
+                        <button id="btn-run-scan" class="btn btn-secondary">Scan Now</button>
+                    </div>
+                </div>
+
+                <!-- Category Chips -->
+                <div id="category-chips-container" class="chips-container">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Files Table -->
+                <div class="table-wrapper">
+                    <table class="data-table" id="scanned-files-table">
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Category</th>
+                                <th>Size</th>
+                                <th>Modified</th>
+                                <th>SHA-256 Hash</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scanned-files-tbody">
+                            <tr>
+                                <td colspan="5" class="empty-state">Click "Scan Now" to inspect your folder.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 2: AI Preview & Approve -->
+            <section id="tab-preview" class="tab-pane glass-panel">
+                <div class="pane-header">
+                    <div>
+                        <h2>Gemma 3 AI Move Preview</h2>
+                        <p class="text-secondary">Dry-run simulation: Gemma reads receipts, PDFs & images and proposes clean structured destinations.</p>
+                    </div>
+                    <div class="preview-actions">
+                        <button id="btn-generate-preview" class="btn btn-secondary">
+                            <span>✨</span> Generate AI Plan
+                        </button>
+                        <button id="btn-approve-moves" class="btn btn-emerald" disabled>
+                            <span>✓</span> Approve & Move Files
+                        </button>
+                    </div>
+                </div>
+
+                <div id="preview-banner" class="alert-banner alert-info" style="display: none;">
+                    <span class="alert-icon">ℹ️</span>
+                    <div id="preview-banner-text">Planned 0 moves. Review the table below, then click "Approve & Move Files".</div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="preview-moves-table">
+                        <thead>
+                            <tr>
+                                <th>Original File</th>
+                                <th>Classified Category</th>
+                                <th>AI Reason / Extracted Vendor</th>
+                                <th>Proposed Destination</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-moves-tbody">
+                            <tr>
+                                <td colspan="4" class="empty-state">No active preview. Click "Generate AI Plan" to run Gemma 3.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 3: Semantic Search -->
+            <section id="tab-search" class="tab-pane glass-panel">
+                <div class="pane-header">
+                    <div>
+                        <h2>"Where is my...?" Semantic Search</h2>
+                        <p class="text-secondary">Natural language search backed by Tiger Data pgvector (768-dim nomic-embed-text) and local SQLite fallback.</p>
+                    </div>
+                </div>
+
+                <div class="search-box-container">
+                    <div class="search-input-wrapper">
+                        <span class="search-prefix-icon">🔍</span>
+                        <input type="text" id="search-query-input" placeholder="e.g. 'Amazon warranty for headphones', 'medical lab results', 'flight ticket'..." class="search-input">
+                        <button id="btn-search-exec" class="btn btn-primary">Search</button>
+                    </div>
+                    <div class="search-suggestions">
+                        <span class="suggestion-tag" data-query="Amazon receipt">Amazon receipt</span>
+                        <span class="suggestion-tag" data-query="tax documents 2026">tax documents 2026</span>
+                        <span class="suggestion-tag" data-query="medical lab test">medical lab test</span>
+                        <span class="suggestion-tag" data-query="travel flight ticket">travel flight ticket</span>
+                    </div>
+                </div>
+
+                <div id="search-results-container" class="search-results-list">
+                    <div class="empty-state">Type a query above to search your organized files by concept and meaning.</div>
+                </div>
+            </section>
+
+            <!-- TAB 4: History & Undo -->
+            <section id="tab-history" class="tab-pane glass-panel">
+                <div class="pane-header">
+                    <div>
+                        <h2>Operation Audit History & Undo</h2>
+                        <p class="text-secondary">Every move is safely logged in SQLite. Roll back any batch with zero data loss.</p>
+                    </div>
+                    <button id="btn-undo-history" class="btn btn-outline">↺ Undo Most Recent Batch</button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="history-batches-table">
+                        <thead>
+                            <tr>
+                                <th>Batch ID</th>
+                                <th>Files Moved</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-batches-tbody">
+                            <tr>
+                                <td colspan="4" class="empty-state">Loading history...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 5: Sloth Audio Briefing -->
+            <section id="tab-briefing" class="tab-pane glass-panel">
+                <div class="pane-header">
+                    <div>
+                        <h2>ElevenLabs Sloth Voice Briefing</h2>
+                        <p class="text-secondary">Listen to a witty audio update of what slothd accomplished while you were resting.</p>
+                    </div>
+                    <button id="btn-refresh-briefing" class="btn btn-secondary">Generate Fresh Briefing</button>
+                </div>
+
+                <div class="audio-briefing-card glass-panel">
+                    <div class="audio-avatar">🦥</div>
+                    <div class="audio-info">
+                        <h3>Morning Sloth Briefing</h3>
+                        <p id="briefing-transcript-text" class="audio-script-text">
+                            "Greetings. While you were taking it easy, I moved slowly but steadily. All your files are tidy, and original timestamps were preserved."
+                        </p>
+
+                        <div class="audio-player-wrapper">
+                            <audio id="sloth-audio-player" controls preload="none">
+                                <source src="/api/briefing/audio" type="audio/wav">
+                                Your browser does not support audio playback.
+                            </audio>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div>
+                <span>🦥 <strong>slothd</strong> — Hacktoberfest 2026 Week 3 Challenge Entry</span>
+                <span class="footer-separator">•</span>
+                <span>Air-Gapped Local-First Architecture</span>
+            </div>
+            <div class="footer-badges">
+                <span class="footer-chip">Gemma 3</span>
+                <span class="footer-chip">Tiger Data</span>
+                <span class="footer-chip">Sentry</span>
+                <span class="footer-chip">ElevenLabs</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
