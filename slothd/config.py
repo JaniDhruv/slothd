@@ -67,6 +67,16 @@ class SlothdConfig(BaseModel):
         description="Sentry DSN for agent tracing",
     )
 
+    # ElevenLabs (optional)
+    elevenlabs_api_key: str | None = Field(
+        default=None,
+        description="ElevenLabs API key for voice summaries",
+    )
+    elevenlabs_voice_id: str = Field(
+        default="JBFqnCBsd6RMkjVDRZzb",
+        description="ElevenLabs voice ID (default: George / warm narrator)",
+    )
+
     # File processing limits
     max_file_size_mb: int = Field(
         default=50,
@@ -99,4 +109,10 @@ class SlothdConfig(BaseModel):
             kwargs["serpapi_key"] = key
         if dsn := os.getenv("SENTRY_DSN"):
             kwargs["sentry_dsn"] = dsn
+        if el_key := os.getenv("ELEVENLABS_API_KEY"):
+            kwargs["elevenlabs_api_key"] = el_key
+        if el_voice := os.getenv("ELEVENLABS_VOICE_ID"):
+            kwargs["elevenlabs_voice_id"] = el_voice
+        if embed := os.getenv("SLOTHD_EMBED_MODEL"):
+            kwargs["embed_model"] = embed
         return cls(**kwargs)

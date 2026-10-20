@@ -354,7 +354,7 @@ def briefing(ctx: click.Context, save: Path | None) -> None:
         )
     )
 
-    client = ElevenLabsClient()
+    client = ElevenLabsClient(api_key=config.elevenlabs_api_key, voice_id=config.elevenlabs_voice_id)
     audio_bytes = client.text_to_speech(script)
 
     if save:

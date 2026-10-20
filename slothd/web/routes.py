@@ -300,7 +300,7 @@ def stream_audio_briefing() -> Response:
         categories={"Documents": total_ops} if total_ops > 0 else {},
     )
 
-    client = ElevenLabsClient()
+    client = ElevenLabsClient(api_key=cfg.elevenlabs_api_key, voice_id=cfg.elevenlabs_voice_id)
     audio_bytes = client.text_to_speech(script)
 
     media_type = "audio/mpeg" if client.is_available() else "audio/wav"
