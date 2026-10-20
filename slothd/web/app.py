@@ -59,6 +59,11 @@ def create_app() -> FastAPI:
             return FileResponse(STATIC_DIR / "index.html")
         return FileResponse(index_file)
 
+    @app.get("/sentry-debug", include_in_schema=False)
+    def trigger_sentry_error() -> None:
+        """Trigger an intentional test error to verify Sentry connection."""
+        _ = 1 / 0
+
     return app
 
 
