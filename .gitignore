@@ -43,6 +43,10 @@ htmlcov/
 .env
 .env.local
 
+# Local Test Sandbox & Generated Audio
+test_workspace/
+*.mp3
+
 # IDE
 .idea/
 .vscode/
