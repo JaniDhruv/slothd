@@ -459,11 +459,40 @@ def toggle(label: str, enabled: bool, detail: str = "") -> Text:
     return text
 
 
+def _flush_stdin() -> None:
+    """Flush any pending keystrokes in the console input buffer."""
+    try:
+        import msvcrt
+
+        while msvcrt.kbhit():
+            msvcrt.getch()
+    except Exception:
+        pass
+
+
+def prompt_press_enter(message: str = "Press Enter to return to main menu...") -> None:
+    """Pause execution until user presses Enter so they can review task results."""
+    _flush_stdin()
+    console.print()
+    try:
+        from InquirerPy import get_style, inquirer
+
+        inquirer.text(
+            message=message,
+            qmark=f"  {G.bullet}",
+            amark=f"  {G.ok}",
+            style=get_style({"question": "#94a3b8", "input": "#5eead4"}),
+            transformer=lambda _: "",
+        ).execute()
+    except (KeyboardInterrupt, EOFError):
+        pass
+
+
 def next_steps(commands: Sequence[tuple[str, str]]) -> None:
     """Claude Code-style 'what now?' block that closes every command."""
     width = max(len(cmd) for cmd, _ in commands)
     console.print()
-    console.print(Text.assemble(("  ", ""), (G.rail_mid, "rail"), (" ", ""), ("Next", "key")))
+    console.print(Text.assemble(("  ", ""), (G.rail_mid, "rail"), (" ", ""), ("Suggested next actions:", "key")))
     for i, (cmd, why) in enumerate(commands):
         rail = G.rail_end if i == len(commands) - 1 else G.rail_branch
         console.print(
@@ -471,7 +500,7 @@ def next_steps(commands: Sequence[tuple[str, str]]) -> None:
                 ("  ", ""),
                 (rail, "rail"),
                 (" ", ""),
-                (G.pointer, "accent"),
+                (G.arrow, "ok"),
                 (" ", ""),
                 (cmd.ljust(width), "accent"),
                 (f"   {why}", "muted"),
@@ -788,6 +817,20 @@ def interactive_picker(version: str, *, show_banner: bool = True) -> str | None:
         {"name": f"  {G.err}  Exit                        Quit interactive session", "value": "exit"},
     ]
 
+    choice_labels = {
+        "scan": "Scan a directory",
+        "organize": "Organize files (dry-run)",
+        "organize-go": "Organize files (live)",
+        "predict": "TabPFN anomaly predictor",
+        "undo": "Undo last batch",
+        "search": "Semantic search",
+        "daemon": "Start idle daemon",
+        "serve": "Launch web dashboard",
+        "briefing": "Voice briefing",
+        "exit": "Exit",
+    }
+
+    _flush_stdin()
     try:
         result = inquirer.select(
             message="",
@@ -819,7 +862,7 @@ def interactive_picker(version: str, *, show_banner: bool = True) -> str | None:
             qmark="",
             amark=f"  {G.ok}",
             instruction="(↑/↓ to navigate, enter to select, ctrl+c to exit)",
-            transformer=lambda x: "",  # Don't echo the full choice text
+            transformer=lambda x: f"  {choice_labels.get(x, x)}",
         ).execute()
         return result
     except (KeyboardInterrupt, EOFError):
@@ -903,6 +946,7 @@ def prompt_source_directory(message: str = "Which directory would you like to us
     )
     console.print()
 
+    _flush_stdin()
     try:
         choice = inquirer.select(
             message="",
@@ -922,7 +966,7 @@ def prompt_source_directory(message: str = "Which directory would you like to us
             qmark="",
             amark=f"  {G.ok}",
             instruction="(↑/↓ to navigate, enter to select, ctrl+c to cancel)",
-            transformer=lambda x: "",
+            transformer=lambda x: f"  {tilde(x)}" if x != "__custom__" else "  Custom directory...",
         ).execute()
 
         if not choice:
@@ -991,6 +1035,7 @@ def prompt_destination_directory(source_dir: Path) -> tuple[bool, Path | None]:
     )
     console.print()
 
+    _flush_stdin()
     try:
         choice = inquirer.select(
             message="",
@@ -1010,7 +1055,7 @@ def prompt_destination_directory(source_dir: Path) -> tuple[bool, Path | None]:
             qmark="",
             amark=f"  {G.ok}",
             instruction="(↑/↓ to navigate, enter to select, ctrl+c to cancel)",
-            transformer=lambda x: "",
+            transformer=lambda x: "  In-place" if x == "__in_place__" else ("  Custom destination..." if x == "__custom__" else f"  {tilde(x)}"),
         ).execute()
 
         if not choice:
@@ -1065,6 +1110,7 @@ def prompt_text(message: str, default: str = "") -> str | None:
 
 def prompt_confirm(message: str, default: bool = True) -> bool | None:
     """Prompt user for yes/no confirmation with InquirerPy."""
+    _flush_stdin()
     try:
         from InquirerPy import get_style, inquirer
     except ImportError:
@@ -1085,6 +1131,7 @@ def prompt_confirm(message: str, default: bool = True) -> bool | None:
                     "question": "#94a3b8",
                 }
             ),
+            transformer=lambda x: "  Yes" if x else "  No",
         ).execute()
         return result
     except (KeyboardInterrupt, EOFError):
