@@ -4,7 +4,7 @@
 
   <p>
     <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge"></a>
-    <a href="https://github.com/JaniDhruv/slothd/actions"><img alt="CI" src="https://img.shields.io/badge/CI-Passing-brightgreen.svg?style=for-the-badge"></a>
+    <a href="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml/badge.svg"></a>
     <a href="https://www.python.org/"><img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-blue.svg?style=for-the-badge"></a>
   </p>
   <p>
@@ -116,7 +116,7 @@ More implementation detail is in [`docs/architecture.md`](docs/architecture.md).
 6. filename length
 7. digit/UUID signal
 
-It uses Prior Labs TabPFN when the optional engine is available. With no TabPFN package or credentials, it falls back to `TabPFN-Heuristic-Local`, which still detects large outliers, installers, stale archives, and screenshot accumulation without network access.
+TabPFN support is optional. Without the TabPFN package or credentials, `slothd` automatically operates using its local deterministic heuristic engine (`TabPFN-Heuristic-Local`) while preserving the exact same seven-feature interface and anomaly report.
 
 ### Stage 2 — only when semantics are needed
 
@@ -152,6 +152,24 @@ uv run slothd scan test_workspace\messy_inbox
 ```text
 ✔ Scanned 10 files · 8.0 KB
 ▲ 1 duplicate set · 973 B reclaimable
+```
+
+Preview, apply, and undo organization:
+
+```powershell
+# Preview organization plan (dry-run by default)
+uv run slothd organize test_workspace\messy_inbox --output test_workspace\demo_out
+
+# Apply moves with atomic SQLite batch logging
+uv run slothd organize test_workspace\messy_inbox --output test_workspace\demo_out --go
+
+# Instant rollback of all moves from that batch
+uv run slothd undo
+```
+
+```text
+  ┌ Undoing batch batch_7a89f10b
+  ✔ Restored 10/10 files from batch batch_7a89f10b
 ```
 
 ## 🚀 Quick start
@@ -283,7 +301,7 @@ slothd copilot
 > - `organize` is a preview unless `--go` is supplied.
 > - No file is overwritten: collisions become `_1`, `_2`, and so on.
 > - Moves are grouped by a unique batch ID in the SQLite operation log.
-> - Original filesystem timestamps are preserved.
+> - File metadata is preserved where the underlying filesystem move supports it; original move details and paths are logged for rollback.
 > - `--enrich-online` is the only route to SerpApi web grounding.
 > - Missing Ollama, PostgreSQL, or API keys produce explicit local fallbacks.
 
@@ -303,7 +321,7 @@ Open [http://localhost:8000](http://localhost:8000). The dashboard surfaces:
 - operation history and rollback
 - audio briefing playback
 
-The web UI is deliberately dependency-light: FastAPI routes plus vanilla HTML, CSS, and JavaScript in [`slothd/web`](slothd/web).
+The web UI is deliberately dependency-light: FastAPI routes in [`slothd/web/app.py`](slothd/web/app.py) plus vanilla HTML, CSS, and JavaScript in [`slothd/web/static/index.html`](slothd/web/static/index.html), [`slothd/web/static/style.css`](slothd/web/static/style.css), and [`slothd/web/static/app.js`](slothd/web/static/app.js).
 
 ## 🔒 Integrations and privacy boundaries
 
@@ -318,7 +336,9 @@ The web UI is deliberately dependency-light: FastAPI routes plus vanilla HTML, C
 | Entire.io | Git-native agent/session provenance | Repository development tooling |
 
 > [!NOTE]
-> The privacy promise is precise: **the default classification and organization path is local-first and air-gapped**. The two network integrations are separately gated and never silently enabled.
+> The privacy promise is precise: **the default classification and organization path is local-first and air-gapped**. The two network integrations (SerpApi and ElevenLabs) are separately gated and never silently enabled.
+>
+> Tiger Data uses `nomic-embed-text` embeddings when available. The SQLite fallback remains fully local and searchable offline, using deterministic embeddings when Ollama is unavailable.
 
 ## 🛠️ Developer experience & AI tooling
 
@@ -378,12 +398,20 @@ Project capabilities mapped to challenge tracks and repository implementations:
 ```text
 1. Inspect the messy inbox fixture: `slothd predict test_workspace/messy_inbox`
 2. Run duplicate and category scan: `slothd scan test_workspace/messy_inbox`
-3. Preview organization without modifying files: `slothd organize test_workspace/messy_inbox`
-4. Apply moves safely with rollback logging: `slothd organize test_workspace/messy_inbox --go`
+3. Preview organization without modifying files: `slothd organize test_workspace\messy_inbox`
+4. Apply moves safely with rollback logging: `slothd organize test_workspace\messy_inbox --go`
 5. Undo all applied moves in one step: `slothd undo`
 6. Launch dashboard: `slothd serve`
 7. Run automated test suite: `pytest -v -k "not test_idle"`
 ```
+
+## ⚠️ Current limitations
+
+- **TabPFN**: Optional; automatically falls back to local deterministic heuristics (`TabPFN-Heuristic-Local`) when unconfigured or uninstalled.
+- **Gemma 3**: Requires a local Ollama daemon and pulled model weights (`ollama pull gemma3`); falls back to local heuristic routing if Ollama is unreachable.
+- **Tiger Data**: Requires a reachable PostgreSQL instance with `pgvector`; SQLite local vector index serves as the zero-config offline fallback.
+- **Demo Fixture**: The included `test_workspace/messy_inbox` fixture is intentionally compact for fast, reproducible testing rather than a large multi-gigabyte benchmark.
+- **Idle Detection**: Uses OS-specific APIs (Win32 `GetLastInputInfo` / macOS `IOKit` / Linux `xprintidle`); automated tests use simulated idle states to remain deterministic.
 
 ## 📍 Roadmap
 
