@@ -334,7 +334,7 @@ def organize(
             ("Target", ui.tilde(directory)),
             ("Destination", dest_display),
             ("Mode", mode),
-            ("AI", ui.toggle("ai", ai, config.ollama_model)),
+            ("AI", ui.toggle("ai", ai, "Gemma 3")),
             ("Web", ui.toggle("web", enrich_online and bool(config.serpapi_key), "SerpApi")),
         ]
     )
@@ -354,14 +354,17 @@ def organize(
     if ai:
         from slothd.engine.classifier import classify_batch
 
-        with ui.step(f"Classifying with {config.ollama_model}") as s:
+        with ui.step("Classifying with Gemma 3") as s:
             results = classify_batch(
                 files,
                 ollama_host=config.ollama_host,
                 model=config.ollama_model,
                 batch_size=batch_size,
             )
-            s.done(f"Classified {ui.plural(len(results), 'file')} with [accent]{config.ollama_model}[/]")
+            if results:
+                s.done(f"Classified {ui.plural(len(results), 'file')} with [accent]Gemma 3[/]")
+            else:
+                s.done("Using local heuristic classification (Ollama offline)", warn=True)
 
         # Step 2b: online enrichment (opt-in)
         if enrich_online and not config.serpapi_key:
@@ -569,7 +572,7 @@ def briefing(ctx: click.Context, save: Path | None) -> None:
 @cli.command()
 @click.option("--interval", default=5, help="Check interval in minutes")
 @click.option("--idle-threshold", default=300, help="Idle time threshold in seconds")
-@click.option("--use-ai", is_flag=True, help="Enable AI classification via Ollama (Gemma/Llama)")
+@click.option("--use-ai", is_flag=True, help="Enable AI classification via Ollama (Gemma 3)")
 @click.option("--watch", "-w", type=click.Path(path_type=Path), help="Directory to watch (default: from config)")
 @click.option("--output", "-o", type=click.Path(path_type=Path), help="Output directory for organized files")
 @click.pass_context
@@ -595,7 +598,7 @@ def daemon(
             ("Destination", ui.tilde(output_dir) if output_dir else "In-place"),
             ("Checks", f"every {interval} min"),
             ("Idle after", f"{idle_threshold}s without input"),
-            ("AI", ui.toggle("ai", use_ai, config.ollama_model)),
+            ("AI", ui.toggle("ai", use_ai, "Gemma 3")),
         ]
     )
     console.print()

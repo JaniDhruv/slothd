@@ -223,3 +223,66 @@ class TestClassifyFileWithMockedOllama:
         call_args = mock_client.chat.call_args
         messages = call_args.kwargs.get("messages") or call_args[1].get("messages")
         assert "images" not in messages[0]
+
+
+class TestOfflineFallback:
+    """Tests for fast offline detection and fallback in classifier."""
+
+    def test_is_ollama_online_false_on_closed_port(self) -> None:
+        """Verifies closed port returns False quickly."""
+        import time
+
+        from slothd.engine.classifier import is_ollama_online
+
+        t0 = time.perf_counter()
+        # Use an unused ephemeral localhost port
+        assert not is_ollama_online("http://127.0.0.1:59999", timeout=0.2)
+        elapsed = time.perf_counter() - t0
+        assert elapsed < 0.5
+
+    def test_classify_batch_fast_fallback_when_offline(self, tmp_path: Path) -> None:
+        """When Ollama is offline, classify_batch completes in <1s and sets basic_category."""
+        import time
+
+        from slothd.engine.classifier import classify_batch
+
+        files = []
+        for i in range(5):
+            f = tmp_path / f"doc_{i}.pdf"
+            f.write_text(f"content {i}")
+            files.append(scan_file(f))
+
+        t0 = time.perf_counter()
+        results = classify_batch(files, ollama_host="http://127.0.0.1:59999", batch_size=5)
+        elapsed = time.perf_counter() - t0
+
+        assert elapsed < 1.0
+        assert results == []
+        for f in files:
+            assert f.ai_category == "Documents"
+            assert f.ai_confidence == 0.0
+
+    @patch("slothd.engine.classifier.is_ollama_online", return_value=True)
+    @patch("slothd.engine.classifier.classify_file")
+    def test_classify_batch_circuit_breaker_on_disconnect(
+        self, mock_classify, mock_online, tmp_path: Path
+    ) -> None:
+        """If connection fails mid-batch, subsequent files fall back immediately."""
+        from slothd.engine.classifier import classify_batch
+
+        mock_classify.side_effect = ConnectionError("Connection refused to 127.0.0.1:11434")
+
+        files = []
+        for i in range(4):
+            f = tmp_path / f"pic_{i}.jpg"
+            f.write_bytes(b"\xff\xd8\xff test")
+            files.append(scan_file(f))
+
+        results = classify_batch(files, batch_size=4)
+        assert results == []
+        # Circuit breaker should trigger on file 0, so classify_file only called once
+        assert mock_classify.call_count == 1
+        for f in files:
+            assert f.ai_category == "Images"
+            assert f.ai_confidence == 0.0
+

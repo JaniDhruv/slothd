@@ -80,7 +80,7 @@ def get_status() -> dict[str, Any]:
         "idle_threshold_seconds": cfg.idle_threshold_seconds,
         "target_dirs": [str(p) for p in cfg.target_dirs],
         "ollama_host": cfg.ollama_host,
-        "ollama_model": cfg.ollama_model,
+        "ollama_model": "Gemma 3",
         "version": "0.1.0",
     }
 

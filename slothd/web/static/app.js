@@ -76,11 +76,9 @@ function initIdlePolling() {
                 idleText.textContent = `User Active (${data.idle_seconds}s idle)`;
             }
 
-            // Update header model label if available
-            if (data.ollama_model) {
-                const modelEl = document.getElementById("stat-model-name");
-                if (modelEl) modelEl.textContent = data.ollama_model;
-            }
+            // Update header model label
+            const modelEl = document.getElementById("stat-model-name");
+            if (modelEl) modelEl.textContent = "Gemma 3";
         } catch (err) {
             console.debug("Idle check error:", err);
         }

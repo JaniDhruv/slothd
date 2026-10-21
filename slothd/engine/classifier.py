@@ -193,6 +193,32 @@ If you can't determine something, set it to null."""
 # --------------------------------------------------------------------------- #
 
 
+def is_ollama_online(ollama_host: str = "http://localhost:11434", timeout: float = 0.4) -> bool:
+    """Fast check whether Ollama daemon is reachable.
+
+    Probes the host:port with a short socket timeout to prevent blocking
+    the CLI or daemon when Ollama is not installed or running.
+    """
+    import socket
+    import urllib.parse
+
+    try:
+        parsed = urllib.parse.urlparse(ollama_host)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 11434
+        targets = ["127.0.0.1"] if host in ("localhost", "127.0.0.1") else [host]
+        for target in targets:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            res = sock.connect_ex((target, port))
+            sock.close()
+            if res == 0:
+                return True
+        return False
+    except Exception:
+        return False
+
+
 def classify_file(
     scanned_file: ScannedFile,
     *,
@@ -214,7 +240,7 @@ def classify_file(
     Returns:
         FileClassification with category, date, vendor, proposed name, etc.
     """
-    client = ollama.Client(host=ollama_host)
+    client = ollama.Client(host=ollama_host, timeout=10.0)
     schema = FileClassification.model_json_schema()
 
     file_type = "image" if scanned_file.is_image else ("pdf" if scanned_file.is_pdf else "text")
@@ -376,13 +402,33 @@ def classify_batch(
         List of (ScannedFile, FileClassification) tuples for successfully classified files.
     """
     results: list[tuple[ScannedFile, FileClassification]] = []
+    process_files = files[:batch_size]
+    if not process_files:
+        return results
 
+    # Fast pre-check: if Ollama daemon is offline, don't freeze the CLI for minutes
+    if not is_ollama_online(ollama_host, timeout=0.4):
+        logger.warning(
+            "Ollama server is offline or unreachable at %s. Fast-falling back to local classification.",
+            ollama_host,
+        )
+        for scanned_file in process_files:
+            scanned_file.ai_category = scanned_file.basic_category
+            scanned_file.ai_confidence = 0.0
+        return results
+
+    offline = False
     with trace_span(
         op="ai.classify_batch",
-        description=f"Gemma 3 batch classify ({min(len(files), batch_size)} files)",
+        description=f"Gemma 3 batch classify ({len(process_files)} files)",
         data={"batch_size": batch_size, "total_files": len(files), "model": model},
     ):
-        for scanned_file in files[:batch_size]:
+        for scanned_file in process_files:
+            if offline:
+                scanned_file.ai_category = scanned_file.basic_category
+                scanned_file.ai_confidence = 0.0
+                continue
+
             try:
                 classification = classify_file(
                     scanned_file,
@@ -394,7 +440,15 @@ def classify_batch(
                 logger.info("Classified: %s → %s", scanned_file.name, classification.category)
             except Exception as e:
                 capture_exception(e)
-                logger.warning("Failed to classify %s: %s", scanned_file.name, e)
+                err_msg = str(e).lower()
+                if "connect" in err_msg or "connection" in err_msg or "offline" in err_msg or "11434" in err_msg:
+                    offline = True
+                    logger.warning(
+                        "Ollama connection dropped (%s). Fast-falling back for remaining files.",
+                        e,
+                    )
+                else:
+                    logger.warning("Failed to classify %s: %s", scanned_file.name, e)
                 # Fall back to extension-based classification
                 scanned_file.ai_category = scanned_file.basic_category
                 scanned_file.ai_confidence = 0.0

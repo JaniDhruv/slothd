@@ -1,7 +1,7 @@
 """Scheduler — runs the slothd engine on a slow, steady schedule.
 
 Only triggers organization when the system is idle (cross-platform).
-Optionally uses Gemma 3 / llama AI classification instead of dumb
+Optionally uses Gemma 3 AI classification instead of dumb
 extension-based sorting.
 """
 
@@ -61,7 +61,7 @@ def _run_organize_cycle(
 
         batch = all_files[:batch_size]
 
-        # Optionally classify with AI (Gemma 3 / Llama)
+        # Optionally classify with AI (Gemma 3 via Ollama)
         if use_ai:
             try:
                 from slothd.engine.classifier import classify_batch
@@ -122,7 +122,7 @@ def start_daemon(
         interval_minutes: How often to check for idle (minutes).
         max_file_size_mb: Maximum file size to process.
         batch_size: Files per batch.
-        use_ai: If True, classify files with Gemma 3 / Llama via Ollama.
+        use_ai: If True, classify files with Gemma 3 via Ollama.
         ollama_host: Ollama API host URL.
         ollama_model: Ollama model name for classification.
     """
