@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from slothd.engine.scanner import ScannedFile
+from slothd.engine.scanner import SLOTHD_MARKER, ScannedFile
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +178,7 @@ class PlannedMove:
 
 def compute_destination(
     scanned_file: ScannedFile,
-    base_dir: Path | None = None,
+    base_dir: Path,
 ) -> Path:
     """Compute the organized destination path for a file.
 
@@ -187,14 +187,13 @@ def compute_destination(
 
     Args:
         scanned_file: The classified file.
-        base_dir: Base directory for organized files. If None, uses the file's
-            parent directory.
+        base_dir: Root directory under which organized files are placed.
+            This MUST be a fixed directory (typically the scan root or an
+            explicit --output dir) — never the individual file's parent.
 
     Returns:
         Full destination Path.
     """
-    base = base_dir or scanned_file.path.parent
-
     # Use AI category if available, otherwise fall back to extension-based
     category = scanned_file.ai_category or scanned_file.basic_category
 
@@ -219,7 +218,7 @@ def compute_destination(
     # Clean the filename
     new_name = _sanitize_filename(new_name)
 
-    return base / category / year / month / new_name
+    return base_dir / category / year / month / new_name
 
 
 def _sanitize_filename(name: str) -> str:
@@ -265,13 +264,13 @@ def resolve_collision(dest: Path) -> Path:
 
 def plan_moves(
     files: list[ScannedFile],
-    base_dir: Path | None = None,
+    base_dir: Path,
 ) -> list[PlannedMove]:
     """Plan all file moves without executing them (dry-run).
 
     Args:
         files: List of classified ScannedFile objects.
-        base_dir: Base directory for organized files.
+        base_dir: Root directory under which organized output is placed.
 
     Returns:
         List of PlannedMove objects describing what would happen.
@@ -359,7 +358,37 @@ def execute_moves(
     # Log the batch
     ops_log.log_batch(batch_id, len(executed))
 
+    # Write marker files into each unique category root so the scanner
+    # skips these directories on subsequent runs.
+    _write_organized_markers(executed)
+
     return executed
+
+
+def _write_organized_markers(executed_moves: list[PlannedMove]) -> None:
+    """Drop a `.slothd_organized` marker into each top-level category dir.
+
+    The marker is placed in the first path component after the base dir
+    (i.e. the category folder) so the scanner can quickly identify organized
+    output trees without walking the entire subtree.
+    """
+    marked: set[Path] = set()
+    for move in executed_moves:
+        # The category folder is the destination's grandparent^2
+        # (base/Category/YYYY/Month/file.ext → we want base/Category)
+        category_dir = move.destination.parent.parent.parent
+        if category_dir not in marked and category_dir.is_dir():
+            marker_path = category_dir / SLOTHD_MARKER
+            if not marker_path.exists():
+                try:
+                    marker_path.write_text(
+                        "This directory was organized by slothd.\n"
+                        "Do not delete this file — it prevents re-processing.\n"
+                    )
+                    logger.debug("Wrote marker: %s", marker_path)
+                except OSError:
+                    pass
+            marked.add(category_dir)
 
 
 def undo_last_batch(ops_log: OperationLog) -> int:

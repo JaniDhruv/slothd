@@ -158,8 +158,9 @@ def preview_organization(req: PreviewRequest) -> dict[str, Any]:
             batch_size=req.batch_size,
         )
 
-        # Plan moves
-        moves = plan_moves(batch, base_dir=cfg.output_dir or target_path)
+        # Plan moves — use the target path as the organization root
+        base_dir = cfg.output_dir or target_path
+        moves = plan_moves(batch, base_dir)
 
     return {
         "target_path": str(target_path),
@@ -249,7 +250,8 @@ def execute_organization(req: ExecuteRequest) -> dict[str, Any]:
         )
 
         # 2. Plan
-        moves = plan_moves(batch, base_dir=cfg.output_dir or target_path)
+        base_dir = cfg.output_dir or target_path
+        moves = plan_moves(batch, base_dir)
 
         # 3. Execute
         executed = execute_moves(moves, ops_log, batch_id)

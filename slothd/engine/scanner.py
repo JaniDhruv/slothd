@@ -8,10 +8,13 @@ classification by Gemma 3.
 from __future__ import annotations
 
 import hashlib
+import logging
 import mimetypes
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # File categories based on extension (before AI classification)
 EXTENSION_CATEGORIES: dict[str, str] = {
@@ -102,6 +105,19 @@ EXTENSION_CATEGORIES: dict[str, str] = {
     ".db": "Data",
     ".sqlite": "Data",
     ".sqlite3": "Data",
+}
+
+# Marker file placed inside organized output directories so the scanner
+# knows to skip them on subsequent runs (prevents infinite nesting).
+SLOTHD_MARKER = ".slothd_organized"
+
+# Known category folder names produced by the organizer.
+# Used as a secondary heuristic to detect organized output trees.
+KNOWN_CATEGORIES: set[str] = {
+    "Documents", "Images", "Receipts", "Screenshots", "Invoices",
+    "Medical", "Legal", "Tax", "Travel", "Personal", "Work",
+    "Code", "Spreadsheets", "Presentations", "Archives",
+    "Audio", "Video", "Installers", "Fonts", "Data", "Other",
 }
 
 # Image extensions that Gemma 3 Vision can process directly
@@ -226,12 +242,24 @@ def scan_file(path: Path) -> ScannedFile:
     )
 
 
+def _is_organized_dir(directory: Path) -> bool:
+    """Check if a directory is a slothd-organized output tree.
+
+    Returns True if the directory contains a `.slothd_organized` marker
+    OR its name is a known organizer category name.
+    """
+    if (directory / SLOTHD_MARKER).exists():
+        return True
+    return False
+
+
 def scan_directory(
     directory: Path,
     *,
     max_file_size_mb: int = 50,
     recursive: bool = True,
     skip_hidden: bool = True,
+    skip_organized: bool = True,
 ) -> list[ScannedFile]:
     """Walk a directory and scan all files.
 
@@ -240,6 +268,7 @@ def scan_directory(
         max_file_size_mb: Skip files larger than this (MB).
         recursive: Whether to descend into subdirectories.
         skip_hidden: Whether to skip hidden files/directories (starting with '.').
+        skip_organized: Whether to skip directories already organized by slothd.
 
     Returns:
         List of ScannedFile objects for all discovered files.
@@ -249,6 +278,15 @@ def scan_directory(
 
     files: list[ScannedFile] = []
     max_bytes = max_file_size_mb * 1024 * 1024
+
+    # Collect organized subdirectories to skip (marker-based)
+    organized_roots: set[Path] = set()
+    if skip_organized and recursive:
+        for child in directory.iterdir():
+            if child.is_dir() and _is_organized_dir(child):
+                organized_roots.add(child.resolve())
+                logger.debug("Skipping organized directory: %s", child.name)
+
     pattern = "**/*" if recursive else "*"
 
     for item in directory.glob(pattern):
@@ -256,9 +294,19 @@ def scan_directory(
         if item.is_dir():
             continue
 
+        # Skip the marker file itself
+        if item.name == SLOTHD_MARKER:
+            continue
+
         # Skip hidden files/dirs
         if skip_hidden and any(part.startswith(".") for part in item.parts):
             continue
+
+        # Skip files inside organized output trees
+        if skip_organized and organized_roots:
+            item_resolved = item.resolve()
+            if any(item_resolved.is_relative_to(org) for org in organized_roots):
+                continue
 
         # Skip files over size limit
         try:

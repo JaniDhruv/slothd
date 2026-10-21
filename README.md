@@ -23,7 +23,7 @@ Traditional file organizers either:
 3. **Consume massive CPU resources in the background**, draining your laptop battery while you're in the middle of coding or playing games.
 
 **`slothd` changes this paradigm completely:**
-- 💤 **Runs only when you're resting:** Uses native OS idle detection (Win32 `GetLastInputInfo` / cross-platform scheduler). It will *never* steal your CPU while you're working.
+- 💤 **Runs only when you're resting:** Uses native OS idle detection (Win32 `GetLastInputInfo` on Windows, `ioreg HIDIdleTime` on macOS, `xprintidle` on Linux). It will *never* steal your CPU while you're working.
 - 🔒 **100% Air-Gapped & Private:** Powered by **Gemma 4** (or **Llama 3.2**) via local Ollama. Your documents and receipts never leave your physical hard drive.
 - 📐 **Grammar-Enforced Structured Outputs:** Forces local vision models to return strict Pydantic JSON schemas directly at the token level—zero markdown hallucination or JSON parsing errors.
 - 🐯 **"Where is my...?" Semantic Search:** Indexed with 768-dimensional `nomic-embed-text` embeddings into **Tiger Data pgvector** with local SQLite fallback.
@@ -38,7 +38,7 @@ Traditional file organizers either:
 graph TB
     subgraph "🦥 slothd — The Sloth Daemon"
         subgraph "Trigger Layer"
-            IDLE["Idle Detector<br/>Win32 GetLastInputInfo"]
+            IDLE["Idle Detector<br/>Win32 / ioreg / xprintidle"]
             DAEMON["Daemon Scheduler<br/>APScheduler"]
             CLI["CLI Commands<br/>slothd scan / organize / undo"]
             WEB_UI["Web Dashboard<br/>FastAPI + Glassmorphic UI"]
@@ -166,7 +166,11 @@ slothd search "blood test medical report"
 ### 7. Run the Idle Daemon
 Run in the background and only activate when you take a break:
 ```bash
+# Extension-based sorting (fast, no GPU needed)
 slothd daemon --idle-threshold 300 --interval 5
+
+# With AI classification via Ollama (uses your configured model)
+slothd daemon --idle-threshold 300 --interval 5 --use-ai
 ```
 
 ### 8. Voice Briefing

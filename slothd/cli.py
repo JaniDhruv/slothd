@@ -189,7 +189,8 @@ def organize(
             )
             console.print(f"Enriched [bold]{enriched_count}[/] files via SerpApi.")
 
-    # Step 3: Plan moves
+    # Step 3: Plan moves — always use the scan directory (or explicit output)
+    # as the base so all files consolidate under one tree.
     base_dir = output or directory
     moves = plan_moves(files, base_dir)
 
@@ -369,18 +370,21 @@ def briefing(ctx: click.Context, save: Path | None) -> None:
 @cli.command()
 @click.option("--interval", default=5, help="Check interval in minutes")
 @click.option("--idle-threshold", default=300, help="Idle time threshold in seconds")
+@click.option("--use-ai", is_flag=True, help="Enable AI classification via Ollama (Gemma/Llama)")
 @click.pass_context
-def daemon(ctx: click.Context, interval: int, idle_threshold: int) -> None:
+def daemon(ctx: click.Context, interval: int, idle_threshold: int, use_ai: bool) -> None:
     """Start the slothd daemon — organizes files when system is idle."""
     from slothd.daemon.scheduler import start_daemon
 
     config = ctx.obj["config"]
 
+    ai_status = "✅" if use_ai else "❌"
     console.print(
         Panel(
             f"[bold cyan]🦥 Starting slothd daemon[/]\n"
             f"Watching: {', '.join(str(d) for d in config.target_dirs)}\n"
-            f"Interval: {interval} min  |  Idle threshold: {idle_threshold}s",
+            f"Interval: {interval} min  |  Idle threshold: {idle_threshold}s\n"
+            f"AI Classification: {ai_status}  |  Model: {config.ollama_model}",
             subtitle="slothd daemon",
         )
     )
@@ -393,6 +397,9 @@ def daemon(ctx: click.Context, interval: int, idle_threshold: int) -> None:
         interval_minutes=interval,
         max_file_size_mb=config.max_file_size_mb,
         batch_size=config.batch_size,
+        use_ai=use_ai,
+        ollama_host=config.ollama_host,
+        ollama_model=config.ollama_model,
     )
 
 
