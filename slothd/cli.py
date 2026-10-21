@@ -129,6 +129,12 @@ def _run_interactive(ctx: click.Context) -> None:
                     ui.header("organize", __version__)
                     ctx.invoke(organize, directory=directory, output=output_dir, go=True, ai=use_ai)
 
+                elif choice == "predict":
+                    directory = ui.prompt_source_directory("Which directory to analyze with TabPFN?")
+                    if directory:
+                        ui.header("predict", __version__)
+                        ctx.invoke(predict, directory=directory)
+
                 elif choice == "undo":
                     ui.header("undo", __version__)
                     ctx.invoke(undo)
@@ -217,6 +223,45 @@ def scan(ctx: click.Context, directory: Path, max_size: int, no_recursive: bool)
 
     ui.step_close()
     ui.next_steps([(f"slothd organize {ui.shell_arg(ui.tilde(directory))}", "preview a tidy-up (dry-run)")])
+
+
+# --------------------------------------------------------------------------- #
+# predict (Prior Labs TabPFN tabular anomaly detection)
+# --------------------------------------------------------------------------- #
+
+
+@cli.command()
+@click.argument("directory", type=click.Path(exists=True, path_type=Path))
+@click.option("--max-size", default=500, help="Max file size in MB")
+@click.option("--no-recursive", is_flag=True, help="Don't descend into subdirectories")
+@click.pass_context
+def predict(ctx: click.Context, directory: Path, max_size: int, no_recursive: bool) -> None:
+    """Predict file categories and spot disk clutter anomalies using Prior Labs TabPFN."""
+    from slothd.engine.scanner import scan_directory
+    from slothd.engine.tabular_predictor import TabPFNPredictor
+
+    ui.step_open(f"TabPFN Tabular Analysis on {ui.tilde(directory)}")
+
+    with ui.step(f"Scanning {ui.tilde(directory)}") as s:
+        files = scan_directory(directory, max_file_size_mb=max_size, recursive=not no_recursive)
+        s.done(f"Scanned {ui.plural(len(files), 'file')}")
+
+    if not files:
+        ui.warn("No files found.")
+        ui.step_close()
+        return
+
+    with ui.step("Running Prior Labs TabPFN anomaly detection") as s:
+        predictor = TabPFNPredictor()
+        result = predictor.analyze_directory(files, base_dir=directory)
+        s.done(f"Analyzed with {result.model_used} [muted]{ui.G.dot} {len(result.anomalies)} anomalies[/]")
+
+    ui.anomalies_table(result)
+    ui.step_close()
+    ui.next_steps([
+        (f"slothd organize {ui.shell_arg(ui.tilde(directory))}", "preview auto-sorting this directory"),
+        (f"slothd scan {ui.shell_arg(ui.tilde(directory))}", "inspect category breakdown & duplicates"),
+    ])
 
 
 # --------------------------------------------------------------------------- #

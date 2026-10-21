@@ -23,6 +23,7 @@ from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -614,6 +615,75 @@ def search_results(hits: Sequence) -> None:
         console.print()
 
 
+def anomalies_table(result: Any, limit: int = 10) -> None:
+    """Render TabPFN tabular prediction and clutter anomaly detection results."""
+    anomalies = getattr(result, "anomalies", [])
+    model_used = getattr(result, "model_used", "TabPFN")
+    clutter_ratio = getattr(result, "clutter_ratio", 0.0)
+
+    section(f"Prior Labs TabPFN Anomaly Report ({model_used})")
+
+    # Overview kv
+    kv([
+        ("Clutter Ratio", f"{clutter_ratio:.1%} ({len(anomalies)} anomalies flagged)"),
+        ("Model Engine", model_used),
+    ])
+    console.print()
+
+    if not anomalies:
+        console.print(
+            Text.assemble(
+                (f"  {G.rail_mid} ", "rail"),
+                (G.ok, "ok"),
+                (" ", ""),
+                ("No disk clutter or abnormal size outliers detected. Directory looks clean!", "muted"),
+            )
+        )
+        return
+
+    for item in anomalies[:limit]:
+        risk_color = (
+            "bold white on #ef4444"
+            if item.risk_level == "CRITICAL"
+            else "bold black on #fbbf24"
+            if item.risk_level == "WARNING"
+            else "bold white on #3b82f6"
+        )
+        risk_badge = Text(f" {item.risk_level} ", style=risk_color)
+
+        # Header: rail + badge + filename + size + score
+        top = Text()
+        top.append(f"  {G.rail_mid} ", style="rail")
+        top.append_text(risk_badge)
+        top.append(f"  {item.file_name} ", style="num")
+        top.append(f"({fmt_size(item.size_bytes)})", style="muted")
+        top.append(f"  [score: {item.anomaly_score:.0%}]", style="accent")
+        console.print(top)
+
+        # Detail: reason -> suggested action
+        detail = Text()
+        detail.append(f"  {G.rail_mid}       ", style="rail")
+        detail.append(item.reason, style="warn")
+        detail.append(f"  {G.arrow}  ", style="muted")
+        detail.append(item.suggested_action, style="ok")
+        console.print(detail)
+
+        # Path: file path
+        path_line = Text()
+        path_line.append(f"  {G.rail_mid}       ", style="rail")
+        path_line.append(tilde(item.file_path), style="muted")
+        console.print(path_line)
+        console.print()
+
+    if len(anomalies) > limit:
+        console.print(
+            Text.assemble(
+                (f"  {G.rail_mid} ", "rail"),
+                (f"… and {len(anomalies) - limit} more anomalies.", "muted"),
+            )
+        )
+
+
 # --------------------------------------------------------------------------- #
 # Dev-server banner (Vite style)
 # --------------------------------------------------------------------------- #
@@ -707,6 +777,7 @@ def interactive_picker(version: str, *, show_banner: bool = True) -> str | None:
         {"name": f"  {G.work}  Organize files (dry-run)    Preview where files will be moved", "value": "organize"},
         {"name": f"  {G.arrow}  Organize files (live)       Move files & index for search", "value": "organize-go"},
         Separator(line=f"  {'─' * 56}"),
+        {"name": f"  {G.diamond}  TabPFN anomaly predictor    Spot clutter & size outliers with TabPFN", "value": "predict"},
         {"name": f"  {G.left}  Undo last batch             Reverse the most recent organization", "value": "undo"},
         {"name": "  ◈  Semantic search             Find files by meaning, not filename", "value": "search"},
         Separator(line=f"  {'─' * 56}"),

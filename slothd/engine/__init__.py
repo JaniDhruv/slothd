@@ -25,6 +25,12 @@ from slothd.engine.scanner import (
     scan_file,
 )
 from slothd.engine.search import SearchEngine, SearchHit
+from slothd.engine.tabular_predictor import (
+    AnomalyItem,
+    TabPFNPredictor,
+    TabularPredictionResult,
+    extract_tabular_features,
+)
 
 __all__ = [
     "ScannedFile",
@@ -47,4 +53,8 @@ __all__ = [
     "SearchEngine",
     "SearchHit",
     "enrich_file_metadata",
+    "AnomalyItem",
+    "TabularPredictionResult",
+    "TabPFNPredictor",
+    "extract_tabular_features",
 ]
