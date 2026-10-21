@@ -1,20 +1,41 @@
-# 🦥 slothd — The Sloth Daemon
+<div align="center">
+  <h1>🦥 slothd — The Sloth Daemon</h1>
+  <p><b>A local-first AI file organizer that waits until your computer is idle, understands what your files mean, and lets you undo every move.</b></p>
 
-> **A local-first AI file organizer that waits until your computer is idle, understands what your files mean, and lets you undo every move.**
+  <p>
+    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge"></a>
+    <a href="https://github.com/JaniDhruv/slothd/actions"><img alt="CI" src="https://img.shields.io/badge/CI-Passing-brightgreen.svg?style=for-the-badge"></a>
+    <a href="https://www.python.org/"><img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-blue.svg?style=for-the-badge"></a>
+  </p>
+  <p>
+    <a href="https://ollama.com/"><img alt="Gemma 3 via Ollama" src="https://img.shields.io/badge/AI-Gemma%203%20%7C%20Ollama-indigo.svg?style=for-the-badge"></a>
+    <a href="https://priorlabs.ai/"><img alt="Prior Labs TabPFN" src="https://img.shields.io/badge/Triage-Prior%20Labs%20TabPFN-blue.svg?style=for-the-badge"></a>
+    <a href="https://fastapi.tiangolo.com/"><img alt="FastAPI" src="https://img.shields.io/badge/Dashboard-FastAPI-009688.svg?style=for-the-badge"></a>
+    <a href="LICENSE"><img alt="Privacy" src="https://img.shields.io/badge/Privacy-Local--First-purple.svg?style=for-the-badge"></a>
+  </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![CI](https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml/badge.svg)](https://github.com/JaniDhruv/slothd/actions)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Gemma 3 via Ollama](https://img.shields.io/badge/AI-Gemma%203%20%7C%20Ollama-indigo.svg)](https://ollama.com/)
-[![Prior Labs TabPFN](https://img.shields.io/badge/Triage-Prior%20Labs%20TabPFN-blue.svg)](https://priorlabs.ai/)
-[![FastAPI](https://img.shields.io/badge/Dashboard-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
-[![MIT licensed](https://img.shields.io/badge/Privacy-local--first-purple.svg)](LICENSE)
+  <p>
+    <b>Built for the <a href="https://dev.to/events/81">Hacktoberfest 2026 Week 3 “Slow and Steady” challenge</a>.</b>
+  </p>
+  <p>
+    Challenge tag: <code>#hf26challenge</code> · Official hub: <a href="https://dev.to/challenges/hf26">DEV Hacktoberfest Challenge Hub</a>
+  </p>
 
-**Built for the [Hacktoberfest 2026 Week 3 “Slow and Steady” challenge](https://dev.to/events/81).**
+  <p>
+    <a href="#-the-one-minute-pitch">Pitch</a> ·
+    <a href="#-architecture">Architecture</a> ·
+    <a href="#-quick-start">Quick start</a> ·
+    <a href="#-cli-guide">CLI guide</a> ·
+    <a href="#-dashboard">Dashboard</a> ·
+    <a href="#-verification">Verification</a> ·
+    <a href="#-hacktoberfest-week-3-track-alignment">Alignment</a> ·
+    <a href="#️-5-minute-evaluation-walkthrough">Walkthrough</a>
+  </p>
+</div>
 
-Challenge tag: `#hf26challenge` · Official hub: [DEV Hacktoberfest Challenge Hub](https://dev.to/challenges/hf26)
+---
 
-## The one-minute pitch
+## 🎯 The one-minute pitch
 
 Downloads folders become unmanageable because file names are poor metadata. `slothd` is a background assistant for fixing that problem without sending private documents to a cloud AI service:
 
@@ -27,7 +48,7 @@ Downloads folders become unmanageable because file names are poor metadata. `slo
 
 The result is a patient file assistant that is useful offline, safe around sensitive files, and pleasant to operate.
 
-### The lazy payoff
+### 😴 The lazy payoff
 
 Instead of manually opening, renaming, deduplicating, and filing every download, the user gets:
 
@@ -39,7 +60,7 @@ Instead of manually opening, renaming, deduplicating, and filing every download,
 
 The included fixture demonstrates the measurable loop: **10 files scanned, 2 clutter anomalies identified, 1 duplicate set found, and 973 B reclaimable**—without requiring an active AI server.
 
-## Why this is different
+## 💡 Why this is different
 
 | Problem | slothd’s answer |
 | --- | --- |
@@ -50,7 +71,7 @@ The included fixture demonstrates the measurable loop: **10 files scanned, 2 clu
 | AI responses are difficult to validate | Ollama receives the Pydantic `FileClassification` JSON schema |
 | Offline environments and missing dependencies | Deterministic heuristic fallbacks, offline vector index, isolated test suite, and cross-platform CI |
 
-## Architecture
+## 🧩 Architecture
 
 ```mermaid
 flowchart TD
@@ -81,7 +102,7 @@ flowchart TD
 
 More implementation detail is in [`docs/architecture.md`](docs/architecture.md).
 
-## The two-stage funnel
+## 🔀 The two-stage funnel
 
 ### Stage 1 — fast, cheap metadata triage
 
@@ -103,7 +124,7 @@ Documents that need content comprehension can be classified by local Gemma 3 via
 
 If Ollama is unreachable, `slothd` performs a fast connectivity check and immediately falls back to local classification instead of hanging the CLI.
 
-## Offline demo fixture
+## 🧪 Offline demo fixture
 
 The repository includes a reproducible fixture in [`test_workspace/messy_inbox`](test_workspace/messy_inbox) containing invoices, code, an installer, an archive, a screenshot, and a deliberate duplicate:
 
@@ -133,7 +154,7 @@ uv run slothd scan test_workspace\messy_inbox
 ▲ 1 duplicate set · 973 B reclaimable
 ```
 
-## Quick start
+## 🚀 Quick start
 
 ### Requirements
 
@@ -163,7 +184,7 @@ ollama pull nomic-embed-text
 
 Copy [`.env.example`](.env.example) to `.env` only when you want to configure local models, Tiger Data, Sentry, SerpApi, or ElevenLabs. Basic scanning, prediction, dry runs, tests, and offline fallbacks do not need those services.
 
-## CLI guide
+## 💻 CLI guide
 
 ### Quick reference
 
@@ -256,16 +277,17 @@ Inspect the active Copilot instruction set, prompt library (`/audit-privacy`, `/
 slothd copilot
 ```
 
-### Safety rules
+### 🛡️ Safety rules
 
-- `organize` is a preview unless `--go` is supplied.
-- No file is overwritten: collisions become `_1`, `_2`, and so on.
-- Moves are grouped by a unique batch ID in the SQLite operation log.
-- Original filesystem timestamps are preserved.
-- `--enrich-online` is the only route to SerpApi web grounding.
-- Missing Ollama, PostgreSQL, or API keys produce explicit local fallbacks.
+> [!IMPORTANT]
+> - `organize` is a preview unless `--go` is supplied.
+> - No file is overwritten: collisions become `_1`, `_2`, and so on.
+> - Moves are grouped by a unique batch ID in the SQLite operation log.
+> - Original filesystem timestamps are preserved.
+> - `--enrich-online` is the only route to SerpApi web grounding.
+> - Missing Ollama, PostgreSQL, or API keys produce explicit local fallbacks.
 
-## Dashboard
+## 📊 Dashboard
 
 Run:
 
@@ -283,7 +305,7 @@ Open [http://localhost:8000](http://localhost:8000). The dashboard surfaces:
 
 The web UI is deliberately dependency-light: FastAPI routes plus vanilla HTML, CSS, and JavaScript in [`slothd/web`](slothd/web).
 
-## Integrations and privacy boundaries
+## 🔒 Integrations and privacy boundaries
 
 | Integration | What it adds | Default |
 | --- | --- | --- |
@@ -295,9 +317,10 @@ The web UI is deliberately dependency-light: FastAPI routes plus vanilla HTML, C
 | Sentry | Pipeline performance spans | Optional DSN |
 | Entire.io | Git-native agent/session provenance | Repository development tooling |
 
-The privacy promise is precise: **the default classification and organization path is local-first and air-gapped**. The two network integrations are separately gated and never silently enabled.
+> [!NOTE]
+> The privacy promise is precise: **the default classification and organization path is local-first and air-gapped**. The two network integrations are separately gated and never silently enabled.
 
-## Developer experience & AI tooling
+## 🛠️ Developer experience & AI tooling
 
 - [`.github/copilot-instructions.md`](.github/copilot-instructions.md) encodes the project’s privacy, reversibility, model-presentation, TabPFN, and UI rules.
 - [`.github/prompts/new-sorter.prompt.md`](.github/prompts/new-sorter.prompt.md) helps add collision-safe category rules.
@@ -308,7 +331,7 @@ The privacy promise is precise: **the default classification and organization pa
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs lint plus the test matrix on Ubuntu and Windows with Python 3.11 and 3.12.
 - Entire hooks and settings live in [`.agents/hooks.json`](.agents/hooks.json) and [`.entire/settings.json`](.entire/settings.json).
 
-## Verification
+## ✅ Verification
 
 The test suite uses `tmp_path`, mocks external services, and does not require Ollama, PostgreSQL, a GPU, or internet access:
 
@@ -334,7 +357,7 @@ All checks passed!
 
 The deselected tests exercise real OS idle behavior and are intentionally excluded from the deterministic offline command.
 
-## Hacktoberfest Week 3 track alignment
+## 🏁 Hacktoberfest Week 3 track alignment
 
 Project capabilities mapped to challenge tracks and repository implementations:
 
@@ -350,7 +373,7 @@ Project capabilities mapped to challenge tracks and repository implementations:
 | Memorable user experience | Sloth-themed Rich UI, interactive next actions, and voice briefings |
 | Strong developer story | Copilot prompt library, PR checklist, `slothd copilot`, CI, and Entire provenance |
 
-## 5-Minute evaluation walkthrough
+## ⏱️ 5-Minute evaluation walkthrough
 
 ```text
 1. Inspect the messy inbox fixture: `slothd predict test_workspace/messy_inbox`
@@ -362,13 +385,13 @@ Project capabilities mapped to challenge tracks and repository implementations:
 7. Run automated test suite: `pytest -v -k "not test_idle"`
 ```
 
-## Roadmap
+## 📍 Roadmap
 
 - Calibrate TabPFN predictions against a larger opt-in local corpus.
 - Add more OS-specific idle detection coverage and integration tests.
 - Add richer dashboard filtering for operation batches and anomaly reasons.
 - Publish a short benchmark comparing metadata triage with full document classification.
 
-## License
+## 📄 License
 
 MIT. See [`LICENSE`](LICENSE).
