@@ -2,16 +2,14 @@
   <h1>🦥 slothd — The Sloth Daemon</h1>
   <p><b>A local-first AI file organizer that waits until your computer is idle, understands what your files mean, and lets you undo every move.</b></p>
 
-  <p>
-    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge"></a>
-    <a href="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml/badge.svg"></a>
-    <a href="https://www.python.org/"><img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-blue.svg?style=for-the-badge"></a>
-  </p>
-  <p>
-    <a href="https://ollama.com/"><img alt="Gemma 3 via Ollama" src="https://img.shields.io/badge/AI-Gemma%203%20%7C%20Ollama-indigo.svg?style=for-the-badge"></a>
-    <a href="https://priorlabs.ai/"><img alt="Prior Labs TabPFN" src="https://img.shields.io/badge/Triage-Prior%20Labs%20TabPFN-blue.svg?style=for-the-badge"></a>
-    <a href="https://fastapi.tiangolo.com/"><img alt="FastAPI" src="https://img.shields.io/badge/Dashboard-FastAPI-009688.svg?style=for-the-badge"></a>
-    <a href="LICENSE"><img alt="Privacy" src="https://img.shields.io/badge/Privacy-Local--First-purple.svg?style=for-the-badge"></a>
+  <p align="center">
+    <a href="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml"><img src="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+    <img src="https://img.shields.io/github/commit-activity/w/JaniDhruv/slothd" alt="GitHub commit activity">
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white" alt="Python 3.10+"></a>
+    <a href="https://ollama.com/"><img src="https://img.shields.io/badge/AI-Gemma_3-6366f1?logo=ollama&logoColor=white" alt="Gemma 3"></a>
+    <a href="https://priorlabs.ai/"><img src="https://img.shields.io/badge/triage-Prior_Labs_TabPFN-2563eb" alt="Prior Labs TabPFN"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-059669" alt="MIT License"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/privacy-local--first-7c3aed" alt="Local-first Privacy"></a>
   </p>
 
   <p>
@@ -160,7 +158,7 @@ Preview, apply, and undo organization:
 # Preview organization plan (dry-run by default)
 uv run slothd organize test_workspace\messy_inbox --output test_workspace\demo_out
 
-# Apply moves with atomic SQLite batch logging
+# Apply moves with WAL-backed SQLite operation logging
 uv run slothd organize test_workspace\messy_inbox --output test_workspace\demo_out --go
 
 # Instant rollback of all moves from that batch
@@ -249,7 +247,7 @@ slothd organize ~/Downloads --ai
 ```
 
 #### 5. Apply file organization (`--go`)
-Execute the moves with collision-safe naming (`_1`, `_2`), atomic SQLite batch logging, and timestamp preservation:
+Execute the moves with collision-safe naming (`_1`, `_2`), WAL-backed SQLite operation logging, and rollback tracking:
 ```bash
 slothd organize ~/Downloads --ai --go
 ```
@@ -396,8 +394,8 @@ Project capabilities mapped to challenge tracks and repository implementations:
 ## ⏱️ 5-Minute evaluation walkthrough
 
 ```text
-1. Inspect the messy inbox fixture: `slothd predict test_workspace/messy_inbox`
-2. Run duplicate and category scan: `slothd scan test_workspace/messy_inbox`
+1. Inspect the messy inbox fixture: `slothd predict test_workspace\messy_inbox`
+2. Run duplicate and category scan: `slothd scan test_workspace\messy_inbox`
 3. Preview organization without modifying files: `slothd organize test_workspace\messy_inbox`
 4. Apply moves safely with rollback logging: `slothd organize test_workspace\messy_inbox --go`
 5. Undo all applied moves in one step: `slothd undo`
