@@ -58,6 +58,15 @@ def create_sandbox():
     # 8. Hidden junk file (to test filtering)
     (sandbox / ".DS_Store").write_text("dummy_metadata")
 
+    # 9. Leftover installer (TabPFN anomaly detection)
+    (sandbox / "DockerDesktopInstaller.exe").write_bytes(b"MZ fake windows installer binary content" * 100)
+
+    # 10. Unsorted screenshot
+    (sandbox / "Screenshot 2026-10-18 at 2.34.12 PM.png").write_bytes(make_png(80, 60))
+
+    # 11. Stale archive
+    (sandbox / "legacy_project_backup_2025.zip").write_bytes(b"PK fake zip content" * 50)
+
     files = list(sandbox.iterdir())
     print(f"Created sandbox with {len(files)} files in {sandbox.resolve()}")
     for f in files:
