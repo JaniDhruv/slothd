@@ -93,28 +93,41 @@ def _run_interactive(ctx: click.Context) -> None:
 
             try:
                 if choice == "scan":
-                    directory = ui.prompt_directory("Which directory to scan?")
+                    directory = ui.prompt_source_directory("Which directory to scan?")
                     if directory:
                         ui.header("scan", __version__)
-                        ctx.invoke(scan, directory=Path(directory))
+                        ctx.invoke(scan, directory=directory)
 
                 elif choice == "organize":
-                    directory = ui.prompt_directory("Which directory to organize?")
-                    if directory:
-                        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=False)
-                        ui.header("organize", __version__)
-                        ctx.invoke(organize, directory=Path(directory), ai=bool(use_ai))
+                    directory = ui.prompt_source_directory("Which directory to organize?")
+                    if not directory:
+                        continue
+                    ok, output_dir = ui.prompt_destination_directory(directory)
+                    if not ok:
+                        continue
+                    use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=False)
+                    if use_ai is None:
+                        continue
+                    ui.header("organize", __version__)
+                    ctx.invoke(organize, directory=directory, output=output_dir, ai=use_ai)
 
                 elif choice == "organize-go":
-                    directory = ui.prompt_directory("Which directory to organize?")
-                    if directory:
-                        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=True)
-                        confirm = ui.prompt_confirm("This will move files. Continue?", default=True)
-                        if confirm:
-                            ui.header("organize", __version__)
-                            ctx.invoke(organize, directory=Path(directory), go=True, ai=bool(use_ai))
-                        else:
-                            ui.warn("Cancelled.")
+                    directory = ui.prompt_source_directory("Which directory to organize?")
+                    if not directory:
+                        continue
+                    ok, output_dir = ui.prompt_destination_directory(directory)
+                    if not ok:
+                        continue
+                    use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=True)
+                    if use_ai is None:
+                        continue
+                    dest_label = ui.tilde(output_dir) if output_dir else f"{ui.tilde(directory)} (in-place)"
+                    confirm = ui.prompt_confirm(f"Move files to {dest_label}?", default=True)
+                    if not confirm:
+                        ui.warn("Cancelled.")
+                        continue
+                    ui.header("organize", __version__)
+                    ctx.invoke(organize, directory=directory, output=output_dir, go=True, ai=use_ai)
 
                 elif choice == "undo":
                     ui.header("undo", __version__)
@@ -127,9 +140,17 @@ def _run_interactive(ctx: click.Context) -> None:
                         ctx.invoke(search, query=query)
 
                 elif choice == "daemon":
+                    directory = ui.prompt_source_directory("Which directory should daemon watch?")
+                    if not directory:
+                        continue
+                    ok, output_dir = ui.prompt_destination_directory(directory)
+                    if not ok:
+                        continue
                     use_ai = ui.prompt_confirm("Enable AI classification?", default=False)
+                    if use_ai is None:
+                        continue
                     ui.header("daemon", __version__)
-                    ctx.invoke(daemon, use_ai=bool(use_ai))
+                    ctx.invoke(daemon, watch=directory, output=output_dir, use_ai=use_ai)
 
                 elif choice == "serve":
                     ui.header("serve", __version__)
@@ -238,10 +259,12 @@ def organize(
 
     mode = ui.badge("LIVE", bg="#4ade80") if go else ui.badge("DRY RUN", bg="#fbbf24")
 
+    dest_display = ui.tilde(output) if output else f"{ui.tilde(directory)} (in-place)"
     ui.step_open("Configuration")
     ui.kv(
         [
             ("Target", ui.tilde(directory)),
+            ("Destination", dest_display),
             ("Mode", mode),
             ("AI", ui.toggle("ai", ai, config.ollama_model)),
             ("Web", ui.toggle("web", enrich_online and bool(config.serpapi_key), "SerpApi")),
@@ -479,17 +502,29 @@ def briefing(ctx: click.Context, save: Path | None) -> None:
 @click.option("--interval", default=5, help="Check interval in minutes")
 @click.option("--idle-threshold", default=300, help="Idle time threshold in seconds")
 @click.option("--use-ai", is_flag=True, help="Enable AI classification via Ollama (Gemma/Llama)")
+@click.option("--watch", "-w", type=click.Path(path_type=Path), help="Directory to watch (default: from config)")
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output directory for organized files")
 @click.pass_context
-def daemon(ctx: click.Context, interval: int, idle_threshold: int, use_ai: bool) -> None:
+def daemon(
+    ctx: click.Context,
+    interval: int,
+    idle_threshold: int,
+    use_ai: bool,
+    watch: Path | None = None,
+    output: Path | None = None,
+) -> None:
     """Start the slothd daemon — organizes files when system is idle."""
     from slothd.daemon.scheduler import start_daemon
 
     config = ctx.obj["config"]
+    target_dirs = [watch] if watch else config.target_dirs
+    output_dir = output if output is not None else config.output_dir
 
     ui.step_open("Daemon configuration")
     ui.kv(
         [
-            ("Watching", ", ".join(ui.tilde(d) for d in config.target_dirs)),
+            ("Watching", ", ".join(ui.tilde(d) for d in target_dirs)),
+            ("Destination", ui.tilde(output_dir) if output_dir else "In-place"),
             ("Checks", f"every {interval} min"),
             ("Idle after", f"{idle_threshold}s without input"),
             ("AI", ui.toggle("ai", use_ai, config.ollama_model)),
@@ -501,8 +536,8 @@ def daemon(ctx: click.Context, interval: int, idle_threshold: int, use_ai: bool)
     console.print()
 
     start_daemon(
-        target_dirs=config.target_dirs,
-        output_dir=config.output_dir,
+        target_dirs=target_dirs,
+        output_dir=output_dir,
         ops_db_path=config.ops_db_path,
         idle_threshold=idle_threshold,
         interval_minutes=interval,

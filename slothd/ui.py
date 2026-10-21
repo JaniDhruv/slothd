@@ -768,7 +768,7 @@ def prompt_directory(message: str = "Which directory?", default: str | None = No
     try:
         result = inquirer.filepath(
             message=message,
-            default=default or str(Path.home() / "Downloads"),
+            default=default or str(Path.cwd()),
             only_directories=True,
             qmark=f"  {G.diamond}",
             amark=f"  {G.ok}",
@@ -785,6 +785,183 @@ def prompt_directory(message: str = "Which directory?", default: str | None = No
         return result
     except (KeyboardInterrupt, EOFError):
         return None
+
+
+def prompt_source_directory(message: str = "Which directory would you like to use?") -> Path | None:
+    """Prompt user to select a source directory via presets or custom path entry."""
+    try:
+        from InquirerPy import get_style, inquirer
+        from InquirerPy.separator import Separator
+    except ImportError:
+        return None
+
+    home = Path.home()
+    candidates = [
+        ("Downloads", home / "Downloads"),
+        ("Desktop", home / "Desktop"),
+        ("Documents", home / "Documents"),
+        ("Current folder", Path.cwd()),
+    ]
+
+    choices = []
+    for label, p in candidates:
+        if p.exists() and p.is_dir():
+            choices.append(
+                {
+                    "name": f"  📂  {label:<16} {tilde(p)}",
+                    "value": str(p),
+                }
+            )
+
+    choices.append(Separator(line=f"  {'─' * 56}"))
+    choices.append(
+        {
+            "name": "  🔍  Custom directory...  (type or browse any path)",
+            "value": "__custom__",
+        }
+    )
+
+    console.print()
+    console.print(
+        Text.assemble(
+            ("  ", ""),
+            (G.diamond, "accent"),
+            (" ", ""),
+            (message, "num"),
+        )
+    )
+    console.print()
+
+    try:
+        choice = inquirer.select(
+            message="",
+            choices=choices,
+            pointer=G.pointer,
+            default=choices[0]["value"] if choices else None,
+            style=get_style(
+                {
+                    "questionmark": "#5eead4",
+                    "answermark": "#4ade80",
+                    "answer": "#7dd3fc",
+                    "pointer": "#5eead4 bold",
+                    "separator": "#374151",
+                    "instruction": "#64748b",
+                }
+            ),
+            qmark="",
+            amark=f"  {G.ok}",
+            instruction="(↑/↓ to navigate, enter to select, ctrl+c to cancel)",
+            transformer=lambda x: "",
+        ).execute()
+
+        if not choice:
+            return None
+
+        if choice == "__custom__":
+            custom_path = prompt_directory("Enter directory path:", default=str(Path.cwd()))
+            if not custom_path:
+                return None
+            p = Path(custom_path).expanduser().resolve()
+            if not p.exists():
+                warn(f"Directory {tilde(p)} does not exist.")
+                return None
+            return p
+
+        return Path(choice).resolve()
+    except (KeyboardInterrupt, EOFError):
+        return None
+
+
+def prompt_destination_directory(source_dir: Path) -> tuple[bool, Path | None]:
+    """Prompt user for where organized files should be stored.
+
+    Returns:
+        (True, None) for in-place organization.
+        (True, Path(...)) for custom or dedicated output folder.
+        (False, None) if cancelled by user.
+    """
+    try:
+        from InquirerPy import get_style, inquirer
+        from InquirerPy.separator import Separator
+    except ImportError:
+        return False, None
+
+    organized_home = Path.home() / "Organized"
+    source_organized = source_dir / "Organized"
+
+    choices = [
+        {
+            "name": f"  📁  In-place              Sort into {tilde(source_dir)}/ (Documents, Images, etc.)",
+            "value": "__in_place__",
+        },
+        {
+            "name": f"  📦  Subfolder in source   Move into {tilde(source_organized)}/",
+            "value": str(source_organized),
+        },
+        {
+            "name": f"  🏠  Home folder (~/Organized) Move into {tilde(organized_home)}/",
+            "value": str(organized_home),
+        },
+        Separator(line=f"  {'─' * 56}"),
+        {
+            "name": "  🔍  Custom destination    Specify another folder path",
+            "value": "__custom__",
+        },
+    ]
+
+    console.print()
+    console.print(
+        Text.assemble(
+            ("  ", ""),
+            (G.diamond, "accent"),
+            (" ", ""),
+            ("Where should organized files be stored?", "num"),
+        )
+    )
+    console.print()
+
+    try:
+        choice = inquirer.select(
+            message="",
+            choices=choices,
+            pointer=G.pointer,
+            default="__in_place__",
+            style=get_style(
+                {
+                    "questionmark": "#5eead4",
+                    "answermark": "#4ade80",
+                    "answer": "#86efac",
+                    "pointer": "#5eead4 bold",
+                    "separator": "#374151",
+                    "instruction": "#64748b",
+                }
+            ),
+            qmark="",
+            amark=f"  {G.ok}",
+            instruction="(↑/↓ to navigate, enter to select, ctrl+c to cancel)",
+            transformer=lambda x: "",
+        ).execute()
+
+        if not choice:
+            return False, None
+
+        if choice == "__in_place__":
+            return True, None
+
+        if choice == "__custom__":
+            custom_path = prompt_directory("Destination directory:", default=str(source_dir))
+            if not custom_path:
+                return False, None
+            p = Path(custom_path).expanduser().resolve()
+            p.mkdir(parents=True, exist_ok=True)
+            return True, p
+
+        p = Path(choice).expanduser().resolve()
+        p.mkdir(parents=True, exist_ok=True)
+        return True, p
+
+    except (KeyboardInterrupt, EOFError):
+        return False, None
 
 
 def prompt_text(message: str, default: str = "") -> str | None:
