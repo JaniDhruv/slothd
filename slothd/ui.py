@@ -472,6 +472,11 @@ def _flush_stdin() -> None:
 
 def prompt_press_enter(message: str = "Press Enter to return to main menu...") -> None:
     """Pause execution until user presses Enter so they can review task results."""
+    import sys
+
+    if not sys.stdin.isatty():
+        return
+
     _flush_stdin()
     console.print()
     try:
@@ -484,7 +489,7 @@ def prompt_press_enter(message: str = "Press Enter to return to main menu...") -
             style=get_style({"question": "#94a3b8", "input": "#5eead4"}),
             transformer=lambda _: "",
         ).execute()
-    except (KeyboardInterrupt, EOFError):
+    except (KeyboardInterrupt, EOFError, Exception):
         pass
 
 
@@ -1082,6 +1087,11 @@ def prompt_destination_directory(source_dir: Path) -> tuple[bool, Path | None]:
 
 def prompt_text(message: str, default: str = "") -> str | None:
     """Prompt user for text input with InquirerPy."""
+    import sys
+
+    if not sys.stdin.isatty():
+        return None
+
     try:
         from InquirerPy import get_style, inquirer
     except ImportError:
@@ -1104,12 +1114,17 @@ def prompt_text(message: str, default: str = "") -> str | None:
             ),
         ).execute()
         return result
-    except (KeyboardInterrupt, EOFError):
+    except (KeyboardInterrupt, EOFError, Exception):
         return None
 
 
 def prompt_confirm(message: str, default: bool = True) -> bool | None:
     """Prompt user for yes/no confirmation with InquirerPy."""
+    import sys
+
+    if not sys.stdin.isatty():
+        return None
+
     _flush_stdin()
     try:
         from InquirerPy import get_style, inquirer
@@ -1134,7 +1149,7 @@ def prompt_confirm(message: str, default: bool = True) -> bool | None:
             transformer=lambda x: "  Yes" if x else "  No",
         ).execute()
         return result
-    except (KeyboardInterrupt, EOFError):
+    except (KeyboardInterrupt, EOFError, Exception):
         return None
 
 

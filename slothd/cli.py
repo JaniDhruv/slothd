@@ -521,10 +521,31 @@ def search(ctx: click.Context, query: str, limit: int) -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _play_audio_file(file_path: Path) -> bool:
+    """Attempt to play or open the audio file with the system default player."""
+    import os
+    import subprocess
+    import sys
+
+    try:
+        if sys.platform == "win32" and hasattr(os, "startfile"):
+            os.startfile(str(file_path))
+            return True
+        elif sys.platform == "darwin":
+            subprocess.Popen(["afplay", str(file_path)])
+            return True
+        else:
+            subprocess.Popen(["xdg-open", str(file_path)])
+            return True
+    except Exception:
+        return False
+
+
 @cli.command()
 @click.option("--save", "-s", type=click.Path(path_type=Path), help="Save audio file to path")
+@click.option("--play", "-p", is_flag=True, help="Play audio file using default player after generation")
 @click.pass_context
-def briefing(ctx: click.Context, save: Path | None) -> None:
+def briefing(ctx: click.Context, save: Path | None, play: bool = False) -> None:
     """Generate and display a sloth voice briefing of organized files."""
     from rich.panel import Panel
 
@@ -552,16 +573,35 @@ def briefing(ctx: click.Context, save: Path | None) -> None:
         )
     )
 
-    with ui.step("Synthesizing voice") as s:
+    with ui.step("Synthesizing voice with ElevenLabs") as s:
         client = ElevenLabsClient(api_key=config.elevenlabs_api_key, voice_id=config.elevenlabs_voice_id)
         audio_bytes = client.text_to_speech(script)
         s.done(f"Generated {ui.fmt_size(len(audio_bytes))} of audio")
 
+    # If save was not specified via CLI flag, ask interactively
+    if not save:
+        save_confirm = ui.prompt_confirm("Save this voice briefing to an audio file?", default=True)
+        if save_confirm:
+            default_name = "sloth_briefing.mp3" if audio_bytes[:3] == b"ID3" or b"LAME" in audio_bytes[:50] or audio_bytes[:2] == b"\xff\xfb" else "sloth_briefing.wav"
+            chosen_name = ui.prompt_text("Filename to save as:", default=default_name)
+            if chosen_name:
+                save = Path(chosen_name).resolve()
+
     if save:
         save.write_bytes(audio_bytes)
         ui.success(f"Saved to [path]{ui.tilde(save)}[/]")
+
+        # Offer to play audio
+        should_play = play
+        if not should_play:
+            play_confirm = ui.prompt_confirm("Play audio briefing now?", default=True)
+            should_play = bool(play_confirm)
+
+        if should_play:
+            ui.info(f"Playing [path]{ui.tilde(save)}[/]...")
+            _play_audio_file(save)
     else:
-        ui.next_steps([("slothd briefing --save briefing.wav", "write the audio to a file")])
+        ui.next_steps([("slothd briefing --save briefing.mp3", "write the audio to a file")])
 
 
 # --------------------------------------------------------------------------- #
