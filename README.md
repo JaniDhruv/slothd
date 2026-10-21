@@ -163,6 +163,10 @@ uv run slothd scan test_workspace\messy_inbox
 ▲ 1 duplicate set · 973 B reclaimable
 ```
 
+![TabPFN anomaly report](docs/demo/02-tabpfn-anomaly-report.png)
+
+*The included fixture is intentionally small and offline-friendly: metadata triage flags the leftover installer and unsorted screenshot before heavier classification is needed.*
+
 Preview, apply, and undo organization:
 
 ```powershell
@@ -180,6 +184,10 @@ uv run slothd undo
   ┌ Undoing batch batch_7a89f10b
   ✔ Restored 10/10 files from batch batch_7a89f10b
 ```
+
+![Before and after organization](docs/demo/06-before-after-folder-organization.png)
+
+*The same fixture goes from a flat inbox to dated category folders, with the move batch recorded for rollback.*
 
 ## 🚀 Quick start
 
@@ -304,6 +312,10 @@ Inspect the active Copilot instruction set, prompt library (`/audit-privacy`, `/
 slothd copilot
 ```
 
+![Dry-run organization preview](docs/demo/04-dry-run-preview.png)
+
+*The default path is deliberately non-destructive: the plan is visible and saved, but no file is moved until `--go` is supplied.*
+
 ### 🛡️ Safety rules
 
 > [!IMPORTANT]
@@ -332,6 +344,10 @@ Open [http://localhost:8000](http://localhost:8000). The dashboard surfaces:
 
 The web UI is deliberately dependency-light: FastAPI routes in [`slothd/web/app.py`](slothd/web/app.py) plus vanilla HTML, CSS, and JavaScript in [`slothd/web/static/index.html`](slothd/web/static/index.html), [`slothd/web/static/style.css`](slothd/web/static/style.css), and [`slothd/web/static/app.js`](slothd/web/static/app.js).
 
+![slothd dashboard](docs/demo/08-dashboard.png)
+
+The complete captured walkthrough is available as an animated demonstration in [`slothd-demo.gif`](docs/demo/slothd-demo.gif) and high-definition video in [`slothd-demo.webm`](docs/demo/slothd-demo.webm). Additional command captures, including the live batch and rollback views, are collected in [`docs/demo/`](docs/demo/).
+
 ## 🔒 Integrations and privacy boundaries
 
 | Integration | What it adds | Default |
@@ -348,6 +364,20 @@ The web UI is deliberately dependency-light: FastAPI routes in [`slothd/web/app.
 > The privacy promise is precise: **the default classification and organization path is local-first and air-gapped**. The two network integrations (SerpApi and ElevenLabs) are separately gated and never silently enabled.
 >
 > Tiger Data uses `nomic-embed-text` embeddings when available. The SQLite fallback remains fully local and searchable offline, using deterministic embeddings when Ollama is unavailable.
+
+## 🔭 Observability: Sentry as a debugging loop
+
+Sentry is not only a dashboard badge in `slothd`; it helped turn real failure signals into targeted fixes. The application initializes Sentry with release `slothd@0.1.0`, captures exceptions from the classifier, and traces the important pipeline boundaries:
+
+| Signal | What it revealed | Resolution |
+| --- | --- | --- |
+| Ollama `ConnectionError` on `127.0.0.1:11434` | The classifier needed to fail fast when a local model server was unavailable | [`3a327ea`](https://github.com/JaniDhruv/slothd/commit/3a327ea) added a short reachability probe, local fallback, and a circuit-breaker test |
+| Pydantic confidence errors for model outputs such as `90` and `100` | Model confidence sometimes arrived as a percentage instead of the required `0.0–1.0` value | [`a914b53`](https://github.com/JaniDhruv/slothd/commit/a914b53) normalized percentage outputs and added bounds coverage |
+| `RuntimeError: generator didn't stop after throw()` | The tracing context manager was swallowing/re-entering exceptions incorrectly | [`df19f29`](https://github.com/JaniDhruv/slothd/commit/df19f29) let exceptions propagate cleanly and added a regression test |
+
+The visible Ollama event in the Sentry project was a **handled test-path failure**, not an unresolved production outage: its event context shows `pytest`, `test_classify_batch_circuit_breaker`, and the offline fallback breadcrumb. That is useful evidence that the failure mode is observable and the fallback path is exercised. The `/sentry-debug` endpoint is intentionally synthetic and exists only to verify Sentry connectivity; it is not a product failure.
+
+Traced operations include `scanner.scan_directory`, `ai.classify`, `ai.classify_batch`, `organizer.preview`, `organizer.execute`, `organizer.undo`, and `search.query`. This gives maintainers both exception context and a transaction-shaped view of the work users care about.
 
 ## 🛠️ Developer experience & AI tooling
 

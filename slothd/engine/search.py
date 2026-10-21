@@ -64,7 +64,7 @@ def generate_embedding(
     try:
         import ollama  # type: ignore
 
-        client = ollama.Client(host=ollama_host, timeout=2.0)
+        client = ollama.Client(host=ollama_host, timeout=0.5)
         res = client.embeddings(model=embed_model, prompt=text)
         embedding = res.get("embedding")
         if embedding and len(embedding) == 768:
