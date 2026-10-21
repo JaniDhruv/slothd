@@ -673,7 +673,7 @@ def server_ready(host: str, port: int, version: str, *, started: float | None = 
 # --------------------------------------------------------------------------- #
 
 
-def interactive_picker(version: str) -> str | None:
+def interactive_picker(version: str, *, show_banner: bool = True) -> str | None:
     """Show an interactive command picker with InquirerPy.
 
     Returns the selected command string, or None if cancelled.
@@ -685,17 +685,19 @@ def interactive_picker(version: str) -> str | None:
         warn("Install InquirerPy for interactive mode: pip install InquirerPy")
         return None
 
-    # Show the banner
-    banner(version)
+    # Show banner on first run, or gradient divider on subsequent loops
+    if show_banner:
+        banner(version)
     gradient_bar()
     console.print()
 
+    prompt_label = "What would you like to do?" if show_banner else "What would you like to do next?"
     console.print(
         Text.assemble(
             ("  ", ""),
             (G.diamond, "accent"),
             (" ", ""),
-            ("What would you like to do?", "num"),
+            (prompt_label, "num"),
         )
     )
     console.print()
@@ -711,6 +713,8 @@ def interactive_picker(version: str) -> str | None:
         {"name": "  ⏳  Start idle daemon           Run in background, activate when idle", "value": "daemon"},
         {"name": "  🌐  Launch web dashboard        Start the FastAPI glassmorphic UI", "value": "serve"},
         {"name": "  🎙  Voice briefing              Hear the sloth summarize your files", "value": "briefing"},
+        Separator(line=f"  {'─' * 56}"),
+        {"name": f"  {G.err}  Exit                        Quit interactive session", "value": "exit"},
     ]
 
     try:

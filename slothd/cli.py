@@ -69,63 +69,90 @@ def cli(ctx: click.Context, verbose: int, interactive: bool) -> None:
 
 
 def _run_interactive(ctx: click.Context) -> None:
-    """Launch the interactive command picker and dispatch."""
-    choice = ui.interactive_picker(__version__)
-    if not choice:
-        raise SystemExit(0)
+    """Launch the interactive command picker in a loop until exit or Ctrl+C."""
+    first_run = True
+    while True:
+        try:
+            choice = ui.interactive_picker(__version__, show_banner=first_run)
+            first_run = False
+            if not choice or choice == "exit":
+                if choice == "exit":
+                    console.print()
+                    console.print(
+                        Text.assemble(
+                            ("  ", ""),
+                            (ui.G.ok, "ok"),
+                            (" ", ""),
+                            ("Goodbye! Have a productive, slothful day.", "brand"),
+                        )
+                    )
+                    console.print()
+                break
 
-    console.print()
+            console.print()
 
-    if choice == "scan":
-        directory = ui.prompt_directory("Which directory to scan?")
-        if not directory:
-            return
-        ui.header("scan", __version__)
-        ctx.invoke(scan, directory=Path(directory))
+            try:
+                if choice == "scan":
+                    directory = ui.prompt_directory("Which directory to scan?")
+                    if directory:
+                        ui.header("scan", __version__)
+                        ctx.invoke(scan, directory=Path(directory))
 
-    elif choice == "organize":
-        directory = ui.prompt_directory("Which directory to organize?")
-        if not directory:
-            return
-        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=False)
-        ui.header("organize", __version__)
-        ctx.invoke(organize, directory=Path(directory), ai=bool(use_ai))
+                elif choice == "organize":
+                    directory = ui.prompt_directory("Which directory to organize?")
+                    if directory:
+                        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=False)
+                        ui.header("organize", __version__)
+                        ctx.invoke(organize, directory=Path(directory), ai=bool(use_ai))
 
-    elif choice == "organize-go":
-        directory = ui.prompt_directory("Which directory to organize?")
-        if not directory:
-            return
-        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=True)
-        confirm = ui.prompt_confirm("This will move files. Continue?", default=True)
-        if not confirm:
-            ui.warn("Cancelled.")
-            return
-        ui.header("organize", __version__)
-        ctx.invoke(organize, directory=Path(directory), go=True, ai=bool(use_ai))
+                elif choice == "organize-go":
+                    directory = ui.prompt_directory("Which directory to organize?")
+                    if directory:
+                        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=True)
+                        confirm = ui.prompt_confirm("This will move files. Continue?", default=True)
+                        if confirm:
+                            ui.header("organize", __version__)
+                            ctx.invoke(organize, directory=Path(directory), go=True, ai=bool(use_ai))
+                        else:
+                            ui.warn("Cancelled.")
 
-    elif choice == "undo":
-        ui.header("undo", __version__)
-        ctx.invoke(undo)
+                elif choice == "undo":
+                    ui.header("undo", __version__)
+                    ctx.invoke(undo)
 
-    elif choice == "search":
-        query = ui.prompt_text("What are you looking for?")
-        if not query:
-            return
-        ui.header("search", __version__)
-        ctx.invoke(search, query=query)
+                elif choice == "search":
+                    query = ui.prompt_text("What are you looking for?")
+                    if query:
+                        ui.header("search", __version__)
+                        ctx.invoke(search, query=query)
 
-    elif choice == "daemon":
-        use_ai = ui.prompt_confirm("Enable AI classification?", default=False)
-        ui.header("daemon", __version__)
-        ctx.invoke(daemon, use_ai=bool(use_ai))
+                elif choice == "daemon":
+                    use_ai = ui.prompt_confirm("Enable AI classification?", default=False)
+                    ui.header("daemon", __version__)
+                    ctx.invoke(daemon, use_ai=bool(use_ai))
 
-    elif choice == "serve":
-        ui.header("serve", __version__)
-        ctx.invoke(serve)
+                elif choice == "serve":
+                    ui.header("serve", __version__)
+                    ctx.invoke(serve)
 
-    elif choice == "briefing":
-        ui.header("briefing", __version__)
-        ctx.invoke(briefing)
+                elif choice == "briefing":
+                    ui.header("briefing", __version__)
+                    ctx.invoke(briefing)
+
+            except KeyboardInterrupt:
+                console.print(f"\n  {ui.G.rail_end} [muted]Stopped.[/]\n")
+            except Exception as exc:  # noqa: BLE001
+                if ctx.obj.get("verbose", 0) >= 2:
+                    console.print_exception(show_locals=False)
+                else:
+                    message, hint = ui.friendly_error(exc)
+                    ui.fail(message, hint)
+
+            console.print()
+
+        except (KeyboardInterrupt, EOFError):
+            console.print()
+            break
 
 
 # --------------------------------------------------------------------------- #
