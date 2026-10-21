@@ -97,7 +97,6 @@ def _run_interactive(ctx: click.Context) -> None:
                     if directory:
                         ui.header("scan", __version__)
                         ctx.invoke(scan, directory=directory)
-                        ui.prompt_press_enter()
 
                 elif choice == "organize":
                     directory = ui.prompt_source_directory("Which directory to organize?")
@@ -111,12 +110,6 @@ def _run_interactive(ctx: click.Context) -> None:
                         continue
                     ui.header("organize", __version__)
                     ctx.invoke(organize, directory=directory, output=output_dir, ai=use_ai)
-
-                    apply = ui.prompt_confirm("Apply these planned moves now?", default=False)
-                    if apply:
-                        ui.header("organize", __version__)
-                        ctx.invoke(organize, directory=directory, output=output_dir, go=True, ai=use_ai)
-                    ui.prompt_press_enter()
 
                 elif choice == "organize-go":
                     directory = ui.prompt_source_directory("Which directory to organize?")
@@ -135,37 +128,22 @@ def _run_interactive(ctx: click.Context) -> None:
                         continue
                     ui.header("organize", __version__)
                     ctx.invoke(organize, directory=directory, output=output_dir, go=True, ai=use_ai)
-                    ui.prompt_press_enter()
 
                 elif choice == "predict":
                     directory = ui.prompt_source_directory("Which directory to analyze with TabPFN?")
                     if directory:
                         ui.header("predict", __version__)
                         ctx.invoke(predict, directory=directory)
-                        organize_now = ui.prompt_confirm("Would you like to preview organizing this directory?", default=False)
-                        if organize_now:
-                            ok, output_dir = ui.prompt_destination_directory(directory)
-                            if ok:
-                                use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=False)
-                                ui.header("organize", __version__)
-                                ctx.invoke(organize, directory=directory, output=output_dir, ai=bool(use_ai))
-                                apply = ui.prompt_confirm("Apply these planned moves now?", default=False)
-                                if apply:
-                                    ui.header("organize", __version__)
-                                    ctx.invoke(organize, directory=directory, output=output_dir, go=True, ai=bool(use_ai))
-                        ui.prompt_press_enter()
 
                 elif choice == "undo":
                     ui.header("undo", __version__)
                     ctx.invoke(undo)
-                    ui.prompt_press_enter()
 
                 elif choice == "search":
                     query = ui.prompt_text("What are you looking for?")
                     if query:
                         ui.header("search", __version__)
                         ctx.invoke(search, query=query)
-                        ui.prompt_press_enter()
 
                 elif choice == "daemon":
                     directory = ui.prompt_source_directory("Which directory should daemon watch?")
@@ -187,7 +165,6 @@ def _run_interactive(ctx: click.Context) -> None:
                 elif choice == "briefing":
                     ui.header("briefing", __version__)
                     ctx.invoke(briefing)
-                    ui.prompt_press_enter()
 
             except KeyboardInterrupt:
                 console.print(f"\n  {ui.G.rail_end} [muted]Stopped.[/]\n")
@@ -448,6 +425,10 @@ def organize(
         ui.success(f"Organized {ui.plural(len(executed), 'file')}", time.perf_counter() - started)
         ui.kv([("Batch", Text(batch_id, style="num")), ("Undo", Text("slothd undo", style="accent"))])
         console.print()
+        ui.next_steps([
+            ("slothd briefing", "hear sloth voice summary of organized files"),
+            ("slothd undo", f"undo batch {batch_id}"),
+        ])
     finally:
         ops_log.close()
 
@@ -480,6 +461,9 @@ def undo(ctx: click.Context) -> None:
             s.done(f"Restored {restored}/{len(operations)} files from batch [num]{batch_id}[/]", warn=not ok)
         ui.step_close()
         console.print()
+        ui.next_steps([
+            ("slothd scan .", "inspect directory after rollback"),
+        ])
     finally:
         ops_log.close()
 
@@ -514,6 +498,10 @@ def search(ctx: click.Context, query: str, limit: int) -> None:
 
     console.print()
     ui.search_results(hits)
+    ui.next_steps([
+        ("slothd organize ~/Downloads", "tidy up downloads folder"),
+        ("slothd briefing", "hear sloth voice summary"),
+    ])
 
 
 # --------------------------------------------------------------------------- #
@@ -600,6 +588,11 @@ def briefing(ctx: click.Context, save: Path | None, play: bool = False) -> None:
         if should_play:
             ui.info(f"Playing [path]{ui.tilde(save)}[/]...")
             _play_audio_file(save)
+
+        ui.next_steps([
+            ("slothd organize ~/Downloads", "tidy up downloads folder"),
+            ("slothd scan .", "inspect files in current folder"),
+        ])
     else:
         ui.next_steps([("slothd briefing --save briefing.mp3", "write the audio to a file")])
 

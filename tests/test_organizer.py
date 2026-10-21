@@ -268,3 +268,27 @@ class TestUndoLastBatch:
 
         assert result == 0
         ops_log.close()
+
+
+class TestNextStepsExecution:
+    """Tests for universal suggested action execution in UI."""
+
+    def test_next_steps_non_interactive_silent(self) -> None:
+        """When not in a tty, next_steps prints without prompting or blocking."""
+        from slothd import ui
+
+        # Should return without blocking or raising
+        ui.next_steps([("slothd scan .", "scan files")], prompt_run=False)
+
+    def test_execute_command_string_invokes_click(self) -> None:
+        """_execute_command_string parses string and calls cli.main."""
+        from unittest.mock import patch
+
+        from slothd.ui import _execute_command_string
+
+        with patch("slothd.cli.cli.main") as mock_main:
+            _execute_command_string("slothd scan test_workspace/messy_inbox --max-size 10")
+            mock_main.assert_called_once()
+            args = mock_main.call_args.kwargs.get("args") or mock_main.call_args[1].get("args")
+            assert args == ["scan", "test_workspace/messy_inbox", "--max-size", "10"]
+

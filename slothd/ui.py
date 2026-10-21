@@ -493,8 +493,43 @@ def prompt_press_enter(message: str = "Press Enter to return to main menu...") -
         pass
 
 
-def next_steps(commands: Sequence[tuple[str, str]]) -> None:
-    """Claude Code-style 'what now?' block that closes every command."""
+def _execute_command_string(cmd_str: str) -> None:
+    """Parse and execute a slothd command string like 'slothd organize ~/Downloads --go'."""
+    import logging
+    import shlex
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        from slothd.cli import cli
+
+        args = [arg.strip('"\'') for arg in shlex.split(cmd_str, posix=False)]
+        if args and args[0] == "slothd":
+            args = args[1:]
+        if not args:
+            return
+
+        header_title = args[0] if args else "slothd"
+        banner_title = f"{header_title} (suggested action)"
+        header(banner_title, "v0.1.0")
+        cli.main(args=args, standalone_mode=False)
+    except SystemExit:
+        pass
+    except Exception as e:
+        logger.error("Failed to execute suggested command %s: %s", cmd_str, e)
+
+
+def next_steps(commands: Sequence[tuple[str, str]], *, prompt_run: bool = True) -> None:
+    """Claude Code-style 'what now?' block that closes every command.
+
+    Displays suggested next actions. If in an interactive terminal, prompts
+    the user with an interactive selector allowing them to run any suggested action.
+    """
+    import sys
+
+    if not commands:
+        return
+
     width = max(len(cmd) for cmd, _ in commands)
     console.print()
     console.print(Text.assemble(("  ", ""), (G.rail_mid, "rail"), (" ", ""), ("Suggested next actions:", "key")))
@@ -512,6 +547,73 @@ def next_steps(commands: Sequence[tuple[str, str]]) -> None:
             )
         )
     console.print()
+
+    # Only prompt if running in an interactive terminal and prompt_run is True
+    if not prompt_run or not sys.stdin.isatty():
+        return
+
+    try:
+        from InquirerPy import get_style, inquirer
+        from InquirerPy.separator import Separator
+    except ImportError:
+        return
+
+    choices = []
+    for cmd, why in commands:
+        choices.append({
+            "name": f"  {G.arrow}  {cmd}   — {why}",
+            "value": cmd,
+        })
+    choices.append(Separator(line=f"  {'─' * 56}"))
+    choices.append({
+        "name": f"  {G.bullet}  Return to main menu / done",
+        "value": "__skip__",
+    })
+
+    console.print(
+        Text.assemble(
+            ("  ", ""),
+            (G.diamond, "accent"),
+            (" ", ""),
+            ("Execute a suggested next action?", "num"),
+        )
+    )
+    console.print()
+
+    _flush_stdin()
+    try:
+        chosen_cmd = inquirer.select(
+            message="",
+            choices=choices,
+            pointer=G.pointer,
+            default=commands[0][0] if commands else "__skip__",
+            style=get_style(
+                {
+                    "questionmark": "#5eead4",
+                    "answermark": "#4ade80",
+                    "answer": "#86efac",
+                    "input": "#ffffff",
+                    "question": "",
+                    "answered_question": "",
+                    "instruction": "#64748b",
+                    "pointer": "#5eead4 bold",
+                    "separator": "#374151",
+                }
+            ),
+            qmark="",
+            amark=f"  {G.ok}",
+            instruction="(↑/↓ to select, enter to execute, ctrl+c to return)",
+            transformer=lambda x: "  Return to menu" if x == "__skip__" else f"  {x}",
+        ).execute()
+
+        if not chosen_cmd or chosen_cmd == "__skip__":
+            return
+
+        console.print()
+        _execute_command_string(chosen_cmd)
+
+    except (KeyboardInterrupt, EOFError, Exception):
+        return
 
 
 def _bar(fraction: float, width: int = 22, color: str = "accent") -> Text:
