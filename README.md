@@ -13,23 +13,34 @@
   </p>
 
   <p>
-    <b>Built for the <a href="https://dev.to/events/81">Hacktoberfest 2026 Week 3 “Slow and Steady” challenge</a>.</b>
-  </p>
-  <p>
-    Challenge tag: <code>#hf26challenge</code> · Official hub: <a href="https://dev.to/challenges/hf26">DEV Hacktoberfest Challenge Hub</a>
-  </p>
-
-  <p>
-    <a href="#-the-one-minute-pitch">Pitch</a> ·
-    <a href="#-architecture">Architecture</a> ·
-    <a href="#-quick-start">Quick start</a> ·
-    <a href="#-cli-guide">CLI guide</a> ·
-    <a href="#-dashboard">Dashboard</a> ·
-    <a href="#-verification">Verification</a> ·
-    <a href="#-hacktoberfest-week-3-track-alignment">Alignment</a> ·
-    <a href="#️-5-minute-evaluation-walkthrough">Walkthrough</a>
+    <b>Built for the <a href="https://dev.to/challenges/hacktoberfest-week3-2026-10-19">Hacktoberfest 2026 Week 3 “Slow and Steady” challenge</a>.</b>
   </p>
 </div>
+
+---
+
+## 📑 Table of Contents
+
+- [🎯 The One-Minute Pitch](#-the-one-minute-pitch)
+  - [😴 The Lazy Payoff](#-the-lazy-payoff)
+- [💡 Why This is Different](#-why-this-is-different)
+- [🧩 Architecture](#-architecture)
+- [🔀 The Two-Stage Funnel](#-the-two-stage-funnel)
+- [🧪 Offline Demo Fixture](#-offline-demo-fixture)
+- [🚀 Quick Start](#-quick-start)
+- [💻 CLI Guide](#-cli-guide)
+  - [Quick Reference](#quick-reference)
+  - [Detailed Command Reference](#detailed-command-reference)
+  - [🛡️ Safety Rules](#️-safety-rules)
+- [📊 Dashboard](#-dashboard)
+- [🔒 Integrations and Privacy Boundaries](#-integrations-and-privacy-boundaries)
+- [🛠️ Developer Experience & AI Tooling](#️-developer-experience--ai-tooling)
+- [✅ Verification](#-verification)
+- [🏁 Hacktoberfest Week 3 Track Alignment](#-hacktoberfest-week-3-track-alignment)
+- [⏱️ 5-Minute Evaluation Walkthrough](#️-5-minute-evaluation-walkthrough)
+- [⚠️ Current Limitations](#️-current-limitations)
+- [📍 Roadmap](#-roadmap)
+- [📄 License](#-license)
 
 ---
 
