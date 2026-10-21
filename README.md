@@ -57,6 +57,14 @@ Downloads folders become unmanageable because file names are poor metadata. `slo
 
 The result is a patient file assistant that is useful offline, safe around sensitive files, and pleasant to operate.
 
+### ▶ Watch the live walkthrough
+
+<a href="docs/demo/slothd-demo.mp4">
+  <img src="docs/demo/slothd-demo.gif" alt="Watch the slothd live dashboard walkthrough" width="900">
+</a>
+
+**[▶ Open the full `slothd-demo.mp4` recording](docs/demo/slothd-demo.mp4)** ([WebM format](docs/demo/slothd-demo.webm)) — scan a messy folder, preview an organization plan, approve moves, search the index, inspect history, and undo the batch.
+
 ### 😴 The lazy payoff
 
 Instead of manually opening, renaming, deduplicating, and filing every download, the user gets:
@@ -346,7 +354,7 @@ The web UI is deliberately dependency-light: FastAPI routes in [`slothd/web/app.
 
 ![slothd dashboard](docs/demo/08-dashboard.png)
 
-The complete captured walkthrough is available as an animated demonstration in [`slothd-demo.gif`](docs/demo/slothd-demo.gif) and high-definition video in [`slothd-demo.webm`](docs/demo/slothd-demo.webm). Additional command captures, including the live batch and rollback views, are collected in [`docs/demo/`](docs/demo/).
+The complete captured walkthrough is available as an animated demonstration in [`slothd-demo.gif`](docs/demo/slothd-demo.gif) and universal MP4 video in [`slothd-demo.mp4`](docs/demo/slothd-demo.mp4) ([WebM format](docs/demo/slothd-demo.webm)). Additional command captures, including the live batch and rollback views, are collected in [`docs/demo/`](docs/demo/).
 
 ## 🔒 Integrations and privacy boundaries
 
