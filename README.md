@@ -1,5 +1,6 @@
 <div align="center">
-  <h1>🦥 slothd — The Sloth Daemon</h1>
+  <img src="docs/demo/hero-banner.png" alt="slothd — local-first · air-gapped · idle AI" width="680">
+
   <p><b>A local-first AI file organizer that waits until your computer is idle, understands what your files mean, and lets you undo every move.</b></p>
 
   <p align="center">
