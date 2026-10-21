@@ -165,6 +165,8 @@ Copy [`.env.example`](.env.example) to `.env` only when you want to configure lo
 
 ## CLI guide
 
+### Quick reference
+
 | Goal | Command | Safety |
 | --- | --- | --- |
 | Interactive picker | `slothd` | Guides source, destination, and next actions |
@@ -179,6 +181,80 @@ Copy [`.env.example`](.env.example) to `.env` only when you want to configure lo
 | Start dashboard | `slothd serve` | Binds to localhost by default |
 | Generate briefing | `slothd briefing --save docs/sloth_briefing.wav` | ElevenLabs optional; local audio fallback |
 | Inspect Copilot setup | `slothd copilot` | Read-only |
+
+### Detailed command reference
+
+#### 1. Interactive picker (recommended)
+Launch the interactive command loop with arrow-key navigation and suggested next actions:
+```bash
+slothd
+```
+Select source folders (Downloads, Desktop, Documents, or Custom) and destinations without hardcoded paths.
+
+#### 2. Prior Labs TabPFN clutter triage (`slothd predict`)
+Extract 7 tabular metadata features and flag clutter, leftover installers, and stale archives in milliseconds:
+```bash
+slothd predict ~/Downloads
+```
+
+#### 3. Duplicate and category scanner (`slothd scan`)
+Inspect file category distributions and calculate reclaimable disk space across SHA-256 duplicate clusters:
+```bash
+slothd scan ~/Downloads
+```
+
+#### 4. Dry-run preview (default)
+Classify files using local Gemma 3 via Ollama and preview proposed destinations without modifying any file:
+```bash
+slothd organize ~/Downloads --ai
+```
+
+#### 5. Apply file organization (`--go`)
+Execute the moves with collision-safe naming (`_1`, `_2`), atomic SQLite batch logging, and timestamp preservation:
+```bash
+slothd organize ~/Downloads --ai --go
+```
+
+#### 6. Optional web grounding (`--enrich-online`)
+Enrich unknown invoice vendors or warranty documents via SerpApi Google Knowledge Graph search:
+```bash
+slothd organize ~/Downloads --ai --enrich-online --go
+```
+
+#### 7. Instant rollback (`slothd undo`)
+Restore all files from the last execution batch back to their exact original locations:
+```bash
+slothd undo
+```
+
+#### 8. Semantic search (`slothd search`)
+Query your files in natural language using Tiger Data pgvector embeddings (or local SQLite fallback):
+```bash
+slothd search "AWS cloud hosting invoice"
+slothd search "blood test lab report"
+```
+
+#### 9. Idle daemon mode (`slothd daemon`)
+Run silently in the background, executing organization cycles only when your computer is idle:
+```bash
+# Fast metadata-based sorting
+slothd daemon --idle-threshold 300 --interval 5
+
+# With local Gemma 3 semantic classification
+slothd daemon --idle-threshold 300 --interval 5 --use-ai
+```
+
+#### 10. Voice briefing (`slothd briefing`)
+Generate a sloth-themed audio summary of organized files via ElevenLabs (or synthetic audio fallback):
+```bash
+slothd briefing --save docs/sloth_briefing.wav
+```
+
+#### 11. GitHub Copilot inspection (`slothd copilot`)
+Inspect the active Copilot instruction set, prompt library (`/audit-privacy`, `/new-sorter`, `/tabpfn-feature`), and air-gap rules directly in your terminal:
+```bash
+slothd copilot
+```
 
 ### Safety rules
 
