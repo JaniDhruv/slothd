@@ -1,6 +1,7 @@
 """CLI interface for slothd.
 
 Usage:
+    slothd                             — Interactive command picker
     slothd scan ~/Downloads            — Scan and show file stats
     slothd organize ~/Downloads        — Organize files (dry-run by default)
     slothd organize ~/Downloads --go   — Actually move files
@@ -19,7 +20,6 @@ from pathlib import Path
 
 import click
 from rich.markup import escape
-from rich.panel import Panel
 from rich.text import Text
 
 from slothd import __version__, ui
@@ -36,7 +36,7 @@ class SlothdGroup(click.Group):
         except (click.ClickException, click.Abort, click.exceptions.Exit):
             raise
         except KeyboardInterrupt:
-            console.print("\n [muted]Cancelled.[/]")
+            console.print(f"\n  {ui.G.rail_end} [muted]Cancelled.[/]")
             raise SystemExit(130) from None
         except Exception as exc:  # noqa: BLE001
             if ctx.params.get("verbose", 0) >= 2:
@@ -50,18 +50,82 @@ class SlothdGroup(click.Group):
 @click.group(cls=SlothdGroup, invoke_without_command=True)
 @click.version_option(version=__version__, prog_name="slothd")
 @click.option("-v", "--verbose", count=True, help="-v for info logs, -vv for debug + tracebacks")
+@click.option("-i", "--interactive", is_flag=True, help="Launch interactive command picker")
 @click.pass_context
-def cli(ctx: click.Context, verbose: int) -> None:
+def cli(ctx: click.Context, verbose: int, interactive: bool) -> None:
     """🦥 slothd — The Sloth Daemon: local-first AI file tidier."""
     ui.setup_logging(verbose)
     ctx.ensure_object(dict)
     ctx.obj["config"] = SlothdConfig.from_env()
     ctx.obj["verbose"] = verbose
+
     if ctx.invoked_subcommand:
         ui.header(ctx.invoked_subcommand, __version__)
-    else:
-        ui.banner(__version__)
-        click.echo(ctx.get_help())
+        return
+
+    # If --interactive flag or bare `slothd` with no subcommand -> interactive picker
+    if interactive or not ctx.invoked_subcommand:
+        _run_interactive(ctx)
+
+
+def _run_interactive(ctx: click.Context) -> None:
+    """Launch the interactive command picker and dispatch."""
+    choice = ui.interactive_picker(__version__)
+    if not choice:
+        raise SystemExit(0)
+
+    console.print()
+
+    if choice == "scan":
+        directory = ui.prompt_directory("Which directory to scan?")
+        if not directory:
+            return
+        ui.header("scan", __version__)
+        ctx.invoke(scan, directory=Path(directory))
+
+    elif choice == "organize":
+        directory = ui.prompt_directory("Which directory to organize?")
+        if not directory:
+            return
+        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=False)
+        ui.header("organize", __version__)
+        ctx.invoke(organize, directory=Path(directory), ai=bool(use_ai))
+
+    elif choice == "organize-go":
+        directory = ui.prompt_directory("Which directory to organize?")
+        if not directory:
+            return
+        use_ai = ui.prompt_confirm("Use AI classification (Gemma 3)?", default=True)
+        confirm = ui.prompt_confirm("This will move files. Continue?", default=True)
+        if not confirm:
+            ui.warn("Cancelled.")
+            return
+        ui.header("organize", __version__)
+        ctx.invoke(organize, directory=Path(directory), go=True, ai=bool(use_ai))
+
+    elif choice == "undo":
+        ui.header("undo", __version__)
+        ctx.invoke(undo)
+
+    elif choice == "search":
+        query = ui.prompt_text("What are you looking for?")
+        if not query:
+            return
+        ui.header("search", __version__)
+        ctx.invoke(search, query=query)
+
+    elif choice == "daemon":
+        use_ai = ui.prompt_confirm("Enable AI classification?", default=False)
+        ui.header("daemon", __version__)
+        ctx.invoke(daemon, use_ai=bool(use_ai))
+
+    elif choice == "serve":
+        ui.header("serve", __version__)
+        ctx.invoke(serve)
+
+    elif choice == "briefing":
+        ui.header("briefing", __version__)
+        ctx.invoke(briefing)
 
 
 # --------------------------------------------------------------------------- #
@@ -78,6 +142,8 @@ def scan(ctx: click.Context, directory: Path, max_size: int, no_recursive: bool)
     """Scan a directory and display file statistics."""
     from slothd.engine.scanner import find_duplicates, group_by_category, scan_directory
 
+    ui.step_open(f"Scanning {ui.tilde(directory)}")
+
     with ui.step(f"Scanning {ui.tilde(directory)}") as s:
         files = scan_directory(directory, max_file_size_mb=max_size, recursive=not no_recursive)
         total = sum(f.size_bytes for f in files)
@@ -85,6 +151,7 @@ def scan(ctx: click.Context, directory: Path, max_size: int, no_recursive: bool)
 
     if not files:
         ui.warn("No files found.")
+        ui.step_close()
         return
 
     groups = group_by_category(files)
@@ -100,6 +167,7 @@ def scan(ctx: click.Context, directory: Path, max_size: int, no_recursive: bool)
         console.print()
         ui.duplicates_block(dupes)
 
+    ui.step_close()
     ui.next_steps([(f"slothd organize {ui.shell_arg(ui.tilde(directory))}", "preview a tidy-up (dry-run)")])
 
 
@@ -142,6 +210,8 @@ def organize(
     started = time.perf_counter()
 
     mode = ui.badge("LIVE", bg="#4ade80") if go else ui.badge("DRY RUN", bg="#fbbf24")
+
+    ui.step_open("Configuration")
     ui.kv(
         [
             ("Target", ui.tilde(directory)),
@@ -159,6 +229,7 @@ def organize(
 
     if not files:
         ui.warn("No files found to organize.")
+        ui.step_close()
         return
 
     # Step 2: AI classification (optional)
@@ -186,8 +257,7 @@ def organize(
                 enriched = sum(1 for f in files[:batch_size] if enrich_file_metadata(f, serp_client))
                 s.done(f"Enriched {ui.plural(enriched, 'file')} via SerpApi")
 
-    # Step 3: plan moves — always use the scan directory (or explicit output)
-    # as the base so all files consolidate under one tree.
+    # Step 3: plan moves
     base_dir = output or directory
     with ui.step("Planning moves") as s:
         moves = plan_moves(files, base_dir)
@@ -195,9 +265,10 @@ def organize(
 
     if not moves:
         ui.success("All files are already organized!")
+        ui.step_close()
         return
 
-    # Step 4: show the plan, grouped by destination folder
+    # Step 4: show the plan
     ui.section(f"Plan {ui.G.dot} {ui.plural(len(moves), 'file')}")
     ui.moves_tree(moves, base_dir)
 
@@ -210,6 +281,7 @@ def organize(
 
         console.print()
         ui.warn(f"Dry run {ui.G.dot} nothing was moved. [muted]Plan saved to {ui.tilde(json_path)}[/]")
+        ui.step_close()
 
         flags = "".join([" --ai" if ai else "", " --enrich-online" if enrich_online else ""])
         out = f" -o {ui.shell_arg(ui.tilde(output))}" if output else ""
@@ -250,6 +322,7 @@ def organize(
             else:
                 s.done(f"Indexed {indexed:,}/{len(executed):,} files [muted](run with -v to see why)[/]", warn=True)
 
+        ui.step_close()
         console.print()
         ui.success(f"Organized {ui.plural(len(executed), 'file')}", time.perf_counter() - started)
         ui.kv([("Batch", Text(batch_id, style="num")), ("Undo", Text("slothd undo", style="accent"))])
@@ -279,10 +352,12 @@ def undo(ctx: click.Context) -> None:
             return
 
         operations = ops_log.get_batch_operations(batch_id)
-        with ui.step(f"Undoing batch {batch_id} ({ui.plural(len(operations), 'file')})") as s:
+        ui.step_open(f"Undoing batch {batch_id}")
+        with ui.step(f"Restoring {ui.plural(len(operations), 'file')}") as s:
             restored = undo_last_batch(ops_log)
             ok = restored == len(operations)
             s.done(f"Restored {restored}/{len(operations)} files from batch [num]{batch_id}[/]", warn=not ok)
+        ui.step_close()
         console.print()
     finally:
         ops_log.close()
@@ -330,6 +405,8 @@ def search(ctx: click.Context, query: str, limit: int) -> None:
 @click.pass_context
 def briefing(ctx: click.Context, save: Path | None) -> None:
     """Generate and display a sloth voice briefing of organized files."""
+    from rich.panel import Panel
+
     from slothd.engine.organizer import OperationLog
     from slothd.integrations.elevenlabs import ElevenLabsClient, generate_briefing_script
 
@@ -346,7 +423,7 @@ def briefing(ctx: click.Context, save: Path | None) -> None:
 
     console.print(
         Panel(
-            Text(f"“{script}”", style="italic"),
+            Text(f"\"{script}\"", style="italic"),
             title="[brand]ElevenLabs sloth briefing[/]",
             title_align="left",
             border_style="track",
@@ -382,6 +459,7 @@ def daemon(ctx: click.Context, interval: int, idle_threshold: int, use_ai: bool)
 
     config = ctx.obj["config"]
 
+    ui.step_open("Daemon configuration")
     ui.kv(
         [
             ("Watching", ", ".join(ui.tilde(d) for d in config.target_dirs)),
@@ -392,6 +470,7 @@ def daemon(ctx: click.Context, interval: int, idle_threshold: int, use_ai: bool)
     )
     console.print()
     ui.info("Daemon running. Sleeping until you step away. [muted]ctrl+c to stop[/]")
+    ui.step_close()
     console.print()
 
     start_daemon(

@@ -2,12 +2,13 @@
 
 Everything visual lives here so cli.py stays about *what* happens, not how it looks.
 
-Design rules (borrowed from the Vercel / Vite / Next.js CLIs):
+Design rules (inspired by Claude Code, Vercel, Vite, Clack CLIs):
   1. A compact one-line header on every command; the big logo only for bare `slothd`.
-  2. One glyph per state:  ◆ working   ✔ done   ▲ warning   ✖ error   ➜ link
-  3. No grid borders. Align with whitespace and dim the secondary text.
-  4. Every step shows how long it took.
-  5. End with the one or two commands the user most likely wants next.
+  2. Left-aligned guide rails (│ ┌ ├ └) connect steps vertically.
+  3. One glyph per state:  ◆ working   ✔ done   ▲ warning   ✖ error   ➜ link
+  4. Gradient dividers and subtle animations for premium feel.
+  5. Every step shows how long it took with micro-timing.
+  6. End with the one or two commands the user most likely wants next.
 """
 
 from __future__ import annotations
@@ -48,15 +49,23 @@ for _stream in (sys.stdout, sys.stderr):
 THEME = Theme(
     {
         "brand": "bold #86efac",
+        "brand.dim": "#4ade80",
         "accent": "#5eead4",
+        "accent.bright": "bold #5eead4",
         "ok": "bold #4ade80",
         "warn": "bold #fbbf24",
         "err": "bold #f87171",
         "muted": "dim",
+        "muted.bright": "#64748b",
         "key": "#94a3b8",
         "path": "#7dd3fc",
         "num": "bold white",
         "track": "grey35",
+        "rail": "#374151",
+        "rail.active": "#5eead4",
+        "badge.live": "bold black on #4ade80",
+        "badge.dry": "bold black on #fbbf24",
+        "badge.info": "bold white on #3b82f6",
     }
 )
 
@@ -81,6 +90,72 @@ class G:
     full = "█" if UNICODE else "#"
     empty = "░" if UNICODE else "-"
     partial = " ▏▎▍▌▋▊▉" if UNICODE else "  "
+    # Guide rails (Claude Code / Clack style)
+    rail_top = "┌" if UNICODE else "+"
+    rail_mid = "│" if UNICODE else "|"
+    rail_branch = "├" if UNICODE else "+"
+    rail_end = "└" if UNICODE else "+"
+    rail_tee = "┬" if UNICODE else "+"
+    rail_dash = "─" if UNICODE else "-"
+    # Selection
+    pointer = "❯" if UNICODE else ">"
+    circle = "●" if UNICODE else "o"
+    circle_empty = "○" if UNICODE else " "
+    diamond = "◇" if UNICODE else "*"
+
+
+# --------------------------------------------------------------------------- #
+# Gradient helpers
+# --------------------------------------------------------------------------- #
+
+MOSS = (134, 239, 172)  # #86efac
+TEAL = (45, 212, 191)   # #2dd4bf
+SKY = (125, 211, 252)   # #7dd3fc
+AMBER = (251, 191, 36)  # #fbbf24
+VIOLET = (167, 139, 250)  # #a78bfa
+
+_GRADIENT_COLORS = [
+    "#5eead4", "#6ee7b7", "#86efac", "#a7f3d0",
+    "#7dd3fc", "#93c5fd", "#a5b4fc", "#c4b5fd",
+]
+
+
+def _lerp(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> str:
+    r, g, bl = (round(x + (y - x) * t) for x, y in zip(a, b, strict=True))
+    return f"#{r:02x}{g:02x}{bl:02x}"
+
+
+def _gradient(lines: Sequence[str], start: tuple[int, int, int], end: tuple[int, int, int]) -> Text:
+    """Diagonal colour sweep across a block of ASCII art."""
+    width = max(len(line) for line in lines)
+    span = width + len(lines) * 2 - 1
+    out = Text(no_wrap=True)
+    for row, line in enumerate(lines):
+        for col, ch in enumerate(line):
+            if ch == " ":
+                out.append(ch)
+            else:
+                out.append(ch, style=_lerp(start, end, (col + row * 2) / span))
+        if row < len(lines) - 1:
+            out.append("\n")
+    return out
+
+
+def gradient_bar(width: int | None = None) -> None:
+    """Print a subtle gradient separator bar (Claude Code style)."""
+    w = width or min(console.width - 4, 72)
+    text = Text()
+    for i in range(w):
+        t = i / max(w - 1, 1)
+        color = _lerp(TEAL, SKY, t)
+        text.append(G.rail_dash, style=color)
+    console.print(Padding(text, (0, 0, 0, 2)))
+
+
+def dim_bar(width: int | None = None) -> None:
+    """Print a dim horizontal rule."""
+    w = width or min(console.width - 4, 72)
+    console.print(Padding(Text(G.rail_dash * w, style="rail"), (0, 0, 0, 2)))
 
 
 # --------------------------------------------------------------------------- #
@@ -162,32 +237,6 @@ def _wordmark_lines(word: str = "SLOTHD") -> list[str]:
     return rows
 
 
-def _lerp(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> str:
-    r, g, bl = (round(x + (y - x) * t) for x, y in zip(a, b, strict=True))
-    return f"#{r:02x}{g:02x}{bl:02x}"
-
-
-def _gradient(lines: Sequence[str], start: tuple[int, int, int], end: tuple[int, int, int]) -> Text:
-    """Diagonal colour sweep across a block of ASCII art."""
-    width = max(len(line) for line in lines)
-    span = width + len(lines) * 2 - 1
-    out = Text(no_wrap=True)
-    for row, line in enumerate(lines):
-        for col, ch in enumerate(line):
-            if ch == " ":
-                out.append(ch)
-            else:
-                out.append(ch, style=_lerp(start, end, (col + row * 2) / span))
-        if row < len(lines) - 1:
-            out.append("\n")
-    return out
-
-
-MOSS = (134, 239, 172)  # #86efac
-TEAL = (45, 212, 191)  # #2dd4bf
-SKY = (125, 211, 252)  # #7dd3fc
-
-
 def banner(version: str) -> None:
     """Full logo. Used only for bare `slothd`."""
     width = console.width
@@ -219,7 +268,17 @@ def banner(version: str) -> None:
 
 
 def header(command: str | None, version: str) -> None:
-    """One compact line, shown on every subcommand."""
+    """One compact line, shown on every subcommand. Claude Code style."""
+    console.print()
+    # Gradient accent line
+    accent_w = min(console.width - 4, 48)
+    accent = Text()
+    for i in range(accent_w):
+        t = i / max(accent_w - 1, 1)
+        color = _lerp(MOSS, SKY, t)
+        accent.append("━", style=color)
+    console.print(Padding(accent, (0, 0, 0, 2)))
+
     line = Text()
     line.append(" ")
     if EMOJI:
@@ -228,25 +287,30 @@ def header(command: str | None, version: str) -> None:
     line.append(f" v{version}", style="muted")
     if command:
         line.append(f"  {G.dot}  ", style="muted")
-        line.append(command, style="num")
-    console.print()
+        line.append(command, style="accent.bright")
     console.print(line)
     console.print()
 
 
 # --------------------------------------------------------------------------- #
-# Steps (spinner while running, tidy line with timing when done)
+# Steps — guide-rail connected, with spinner and micro-timings
 # --------------------------------------------------------------------------- #
 
 
 def _line(glyph: str, style: str, text: str | Text, right: str = "") -> None:
     grid = Table.grid(expand=True, padding=(0, 1))
     grid.add_column(width=1, no_wrap=True)
+    grid.add_column(width=1, no_wrap=True)
     grid.add_column(ratio=1, no_wrap=True, overflow="ellipsis")
     grid.add_column(justify="right", no_wrap=True)
     body = Text.from_markup(text) if isinstance(text, str) else text
-    grid.add_row(Text(glyph, style=style), body, Text(right, style="muted"))
-    console.print(Padding(grid, (0, 1, 0, 1)))
+    grid.add_row(
+        Text(G.rail_mid, style="rail"),
+        Text(glyph, style=style),
+        body,
+        Text(right, style="muted"),
+    )
+    console.print(Padding(grid, (0, 0, 0, 1)))
 
 
 @dataclass
@@ -263,11 +327,19 @@ class StepResult:
 
 @contextmanager
 def step(label: str) -> Generator[StepResult, None, None]:
-    """Run a unit of work behind a slow, sloth-paced spinner."""
+    """Run a unit of work behind a slow, sloth-paced spinner with guide rails."""
     result = StepResult()
     started = time.perf_counter()
+
+    # Print the "working" line with rail connector
     status = console.status(
-        Text(f"{label}…" if UNICODE else f"{label}...", style="muted"),
+        Text.assemble(
+            (G.rail_mid, "rail"),
+            (" ", ""),
+            (G.work, "accent"),
+            (" ", ""),
+            (f"{label}…" if UNICODE else f"{label}...", "muted"),
+        ),
         spinner="dots" if UNICODE else "line",
         spinner_style="accent",
         speed=0.6,
@@ -288,6 +360,19 @@ def step(label: str) -> Generator[StepResult, None, None]:
     _line(glyph, style, result.message or escape(label), fmt_duration(time.perf_counter() - started))
 
 
+def step_open(label: str) -> None:
+    """Print a rail opening line (┌) for a logical group."""
+    text = Text()
+    text.append(f"  {G.rail_top}", style="rail")
+    text.append(f" {label}", style="key")
+    console.print(text)
+
+
+def step_close() -> None:
+    """Print a rail closing line (└)."""
+    console.print(Text(f"  {G.rail_end}", style="rail"))
+
+
 def info(message: str) -> None:
     _line(G.work, "accent", message)
 
@@ -301,10 +386,23 @@ def warn(message: str) -> None:
 
 
 def fail(message: str, hint: str | None = None) -> None:
-    """Vercel-style error: one red line, one actionable hint."""
-    err_console.print(Text.assemble((f" {G.err} ", "err"), ("Error: ", "err"), message))
+    """Claude Code-style error: one red line with rail, one actionable hint."""
+    err_console.print(
+        Text.assemble(
+            (f"  {G.rail_mid} ", "rail"),
+            (f"{G.err} ", "err"),
+            ("Error: ", "err"),
+            (message, ""),
+        )
+    )
     if hint:
-        err_console.print(Text.assemble((f"   {G.arrow} ", "muted"), (hint, "")))
+        err_console.print(
+            Text.assemble(
+                (f"  {G.rail_end} ", "rail"),
+                (f"{G.arrow} ", "muted"),
+                (hint, ""),
+            )
+        )
 
 
 def friendly_error(exc: BaseException) -> tuple[str, str]:
@@ -330,7 +428,10 @@ def friendly_error(exc: BaseException) -> tuple[str, str]:
 
 def section(title: str) -> None:
     console.print()
-    console.print(Text(f"  {title.upper()}", style="key"))
+    text = Text()
+    text.append(f"  {G.rail_mid} ", style="rail")
+    text.append(title.upper(), style="key")
+    console.print(text)
 
 
 def kv(rows: Iterable[tuple[str, str | Text]], indent: int = 3) -> None:
@@ -338,7 +439,11 @@ def kv(rows: Iterable[tuple[str, str | Text]], indent: int = 3) -> None:
     width = max(len(k) for k, _ in rows)
     for key, value in rows:
         text = value if isinstance(value, Text) else Text(value)
-        console.print(Text.assemble((" " * indent + key.ljust(width) + "   ", "key"), text))
+        line = Text()
+        line.append(f"  {G.rail_mid} ", style="rail")
+        line.append(key.ljust(width) + "  ", style="key")
+        line.append_text(text)
+        console.print(line)
 
 
 def badge(label: str, fg: str = "black", bg: str = "#fbbf24") -> Text:
@@ -354,14 +459,19 @@ def toggle(label: str, enabled: bool, detail: str = "") -> Text:
 
 
 def next_steps(commands: Sequence[tuple[str, str]]) -> None:
-    """The 'what now?' block that closes every command."""
+    """Claude Code-style 'what now?' block that closes every command."""
     width = max(len(cmd) for cmd, _ in commands)
     console.print()
-    console.print(Text("  Next", style="key"))
-    for cmd, why in commands:
+    console.print(Text.assemble(("  ", ""), (G.rail_mid, "rail"), (" ", ""), ("Next", "key")))
+    for i, (cmd, why) in enumerate(commands):
+        rail = G.rail_end if i == len(commands) - 1 else G.rail_branch
         console.print(
             Text.assemble(
-                (f"   {G.bullet} ", "muted"),
+                ("  ", ""),
+                (rail, "rail"),
+                (" ", ""),
+                (G.pointer, "accent"),
+                (" ", ""),
                 (cmd.ljust(width), "accent"),
                 (f"   {why}", "muted"),
             )
@@ -392,7 +502,8 @@ def category_chart(rows: Sequence[tuple[str, int, int]]) -> None:
     top = max(count for _, count, _ in rows) or 1
     for i, (name, count, size) in enumerate(rows):
         color = _PALETTE[i % len(_PALETTE)]
-        line = Text("   ")
+        line = Text()
+        line.append(f"  {G.rail_mid} ", style="rail")
         line.append(name.ljust(name_w), style=color)
         line.append("  ")
         line.append_text(_bar(count / top, color=color))
@@ -408,9 +519,20 @@ def duplicates_block(dupes: dict[str, list], limit: int = 5) -> None:
     for digest, files in list(dupes.items())[:limit]:
         names = ", ".join(f.name for f in files[:3])
         extra = f" +{len(files) - 3}" if len(files) > 3 else ""
-        console.print(Text.assemble(("     ", ""), (digest[:8], "muted"), ("  ", ""), (names, "path"), (extra, "muted")))
+        line = Text()
+        line.append(f"  {G.rail_mid}   ", style="rail")
+        line.append(digest[:8], style="muted")
+        line.append("  ")
+        line.append(names, style="path")
+        line.append(extra, style="muted")
+        console.print(line)
     if len(dupes) > limit:
-        console.print(Text(f"     … and {len(dupes) - limit} more sets", style="muted"))
+        console.print(
+            Text.assemble(
+                (f"  {G.rail_mid}   ", "rail"),
+                (f"… and {len(dupes) - limit} more sets", "muted"),
+            )
+        )
 
 
 @dataclass
@@ -463,19 +585,32 @@ def moves_tree(moves: Sequence, base_dir: Path, max_top: int = 4, max_kids: int 
 
 
 def search_results(hits: Sequence) -> None:
-    """Ranked result cards instead of a 5-column table."""
+    """Claude Code-style ranked result cards."""
     for rank, hit in enumerate(hits, start=1):
         score = hit.similarity_score
         color = "#4ade80" if score >= 0.75 else "#fbbf24" if score >= 0.5 else "#94a3b8"
-        top = Text("   ")
+
+        # Rank + score + bar
+        top = Text()
+        top.append(f"  {G.rail_mid} ", style="rail")
         top.append(f"{rank:>2}  ", style="muted")
         top.append(f"{score:>4.0%} ", style=f"bold {color}")
         top.append_text(_bar(score, width=10, color=color))
         top.append(f"  {hit.file_name}", style="num")
         console.print(top)
+
+        # Metadata line
         meta = [hit.category, hit.vendor or None, str(hit.file_date) if hit.file_date else None]
-        console.print(Text("          " + f" {G.dot} ".join(m for m in meta if m), style="accent"))
-        console.print(Text("          " + tilde(hit.file_path), style="muted"))
+        meta_line = Text()
+        meta_line.append(f"  {G.rail_mid}       ", style="rail")
+        meta_line.append(f" {G.dot} ".join(m for m in meta if m), style="accent")
+        console.print(meta_line)
+
+        # Path line
+        path_line = Text()
+        path_line.append(f"  {G.rail_mid}       ", style="rail")
+        path_line.append(tilde(hit.file_path), style="muted")
+        console.print(path_line)
         console.print()
 
 
@@ -496,9 +631,14 @@ def _lan_ip() -> str | None:
 
 
 def server_ready(host: str, port: int, version: str, *, started: float | None = None) -> None:
-    ready = f"  ready in {fmt_duration(time.perf_counter() - started)}" if started else ""
-    console.print(Text.assemble(("  SLOTHD ", "brand"), (f"v{version}", "muted"), (ready, "muted")))
     console.print()
+    gradient_bar()
+    console.print()
+
+    ready = f"  ready in {fmt_duration(time.perf_counter() - started)}" if started else ""
+    console.print(Text.assemble(("  ", ""), ("SLOTHD ", "brand"), (f"v{version}", "muted"), (ready, "muted")))
+    console.print()
+
     local_host = "localhost" if host in {"0.0.0.0", "127.0.0.1", "::"} else host
     rows = [("Local:", f"http://{local_host}:{port}/")]
     if host == "0.0.0.0":
@@ -511,9 +651,192 @@ def server_ready(host: str, port: int, version: str, *, started: float | None = 
         rows.append(("Network:", "use --host 0.0.0.0 to expose"))
     for label, value in rows:
         style = "path" if value.startswith("http") else "muted"
-        console.print(Text.assemble((f"  {G.arrow}  ", "ok"), (label.ljust(9), "key"), (value, style)))
-    console.print(Text.assemble((f"  {G.arrow}  ", "muted"), ("press ", "muted"), ("ctrl+c", "num"), (" to stop", "muted")))
+        console.print(Text.assemble(
+            (f"  {G.rail_mid} ", "rail"),
+            (f"{G.arrow}  ", "ok"),
+            (label.ljust(9), "key"),
+            (value, style),
+        ))
+    console.print(
+        Text.assemble(
+            (f"  {G.rail_end} ", "rail"),
+            ("press ", "muted"),
+            ("ctrl+c", "num"),
+            (" to stop", "muted"),
+        )
+    )
     console.print()
+
+
+# --------------------------------------------------------------------------- #
+# Interactive command picker (Clack/Claude Code style via InquirerPy)
+# --------------------------------------------------------------------------- #
+
+
+def interactive_picker(version: str) -> str | None:
+    """Show an interactive command picker with InquirerPy.
+
+    Returns the selected command string, or None if cancelled.
+    """
+    try:
+        from InquirerPy import get_style, inquirer
+        from InquirerPy.separator import Separator
+    except ImportError:
+        warn("Install InquirerPy for interactive mode: pip install InquirerPy")
+        return None
+
+    # Show the banner
+    banner(version)
+    gradient_bar()
+    console.print()
+
+    console.print(
+        Text.assemble(
+            ("  ", ""),
+            (G.diamond, "accent"),
+            (" ", ""),
+            ("What would you like to do?", "num"),
+        )
+    )
+    console.print()
+
+    choices = [
+        {"name": f"  {G.ok}  Scan a directory             Inspect files, categories & duplicates", "value": "scan"},
+        {"name": f"  {G.work}  Organize files (dry-run)    Preview where files will be moved", "value": "organize"},
+        {"name": f"  {G.arrow}  Organize files (live)       Move files & index for search", "value": "organize-go"},
+        Separator(line=f"  {'─' * 56}"),
+        {"name": f"  {G.left}  Undo last batch             Reverse the most recent organization", "value": "undo"},
+        {"name": "  ◈  Semantic search             Find files by meaning, not filename", "value": "search"},
+        Separator(line=f"  {'─' * 56}"),
+        {"name": "  ⏳  Start idle daemon           Run in background, activate when idle", "value": "daemon"},
+        {"name": "  🌐  Launch web dashboard        Start the FastAPI glassmorphic UI", "value": "serve"},
+        {"name": "  🎙  Voice briefing              Hear the sloth summarize your files", "value": "briefing"},
+    ]
+
+    try:
+        result = inquirer.select(
+            message="",
+            choices=choices,
+            pointer=G.pointer,
+            default=None,
+            style=get_style(
+                {
+                    "questionmark": "#5eead4",
+                    "answermark": "#4ade80",
+                    "answer": "#86efac",
+                    "input": "#ffffff",
+                    "question": "",
+                    "answered_question": "",
+                    "instruction": "#64748b",
+                    "long_instruction": "#64748b",
+                    "pointer": "#5eead4 bold",
+                    "checkbox": "#5eead4",
+                    "separator": "#374151",
+                    "skipped": "#64748b",
+                    "validator": "",
+                    "marker": "#5eead4",
+                    "fuzzy_prompt": "#5eead4",
+                    "fuzzy_info": "#64748b",
+                    "fuzzy_border": "#374151",
+                    "fuzzy_match": "#86efac bold",
+                }
+            ),
+            qmark="",
+            amark=f"  {G.ok}",
+            instruction="(↑/↓ to navigate, enter to select, ctrl+c to exit)",
+            transformer=lambda x: "",  # Don't echo the full choice text
+        ).execute()
+        return result
+    except (KeyboardInterrupt, EOFError):
+        console.print()
+        console.print(Text.assemble(("  ", ""), (G.dot, "muted"), (" ", ""), ("Cancelled.", "muted")))
+        console.print()
+        return None
+
+
+def prompt_directory(message: str = "Which directory?", default: str | None = None) -> str | None:
+    """Prompt user for a directory path with InquirerPy fuzzy file path completion."""
+    try:
+        from InquirerPy import get_style, inquirer
+    except ImportError:
+        return None
+
+    try:
+        result = inquirer.filepath(
+            message=message,
+            default=default or str(Path.home() / "Downloads"),
+            only_directories=True,
+            qmark=f"  {G.diamond}",
+            amark=f"  {G.ok}",
+            style=get_style(
+                {
+                    "questionmark": "#5eead4",
+                    "answermark": "#4ade80",
+                    "answer": "#7dd3fc",
+                    "input": "#ffffff",
+                    "question": "#94a3b8",
+                }
+            ),
+        ).execute()
+        return result
+    except (KeyboardInterrupt, EOFError):
+        return None
+
+
+def prompt_text(message: str, default: str = "") -> str | None:
+    """Prompt user for text input with InquirerPy."""
+    try:
+        from InquirerPy import get_style, inquirer
+    except ImportError:
+        return None
+
+    try:
+        result = inquirer.text(
+            message=message,
+            default=default,
+            qmark=f"  {G.diamond}",
+            amark=f"  {G.ok}",
+            style=get_style(
+                {
+                    "questionmark": "#5eead4",
+                    "answermark": "#4ade80",
+                    "answer": "#86efac",
+                    "input": "#ffffff",
+                    "question": "#94a3b8",
+                }
+            ),
+        ).execute()
+        return result
+    except (KeyboardInterrupt, EOFError):
+        return None
+
+
+def prompt_confirm(message: str, default: bool = True) -> bool | None:
+    """Prompt user for yes/no confirmation with InquirerPy."""
+    try:
+        from InquirerPy import get_style, inquirer
+    except ImportError:
+        return None
+
+    try:
+        result = inquirer.confirm(
+            message=message,
+            default=default,
+            qmark=f"  {G.diamond}",
+            amark=f"  {G.ok}",
+            style=get_style(
+                {
+                    "questionmark": "#5eead4",
+                    "answermark": "#4ade80",
+                    "answer": "#86efac",
+                    "input": "#ffffff",
+                    "question": "#94a3b8",
+                }
+            ),
+        ).execute()
+        return result
+    except (KeyboardInterrupt, EOFError):
+        return None
 
 
 # --------------------------------------------------------------------------- #
