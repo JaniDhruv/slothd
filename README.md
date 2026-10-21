@@ -236,8 +236,34 @@ pytest -v -k "not test_idle"
 | **Best Use of Sentry** | Partner ($100) | Sentry distributed tracing across scan, predict, classify, and organize pipeline | [`slothd/integrations/sentry_tracing.py`](slothd/integrations/sentry_tracing.py) |
 | **Best Use of SerpApi** | Partner ($100) | Google Search Knowledge Graph API for vendor identification with SQLite caching | [`slothd/integrations/serpapi_client.py`](slothd/integrations/serpapi_client.py) |
 | **Best Use of ElevenLabs** | Partner ($100) | ElevenLabs `eleven_multilingual_v2` sloth audio briefings with offline fallback | [`slothd/integrations/elevenlabs.py`](slothd/integrations/elevenlabs.py) |
-| **Best Use of GitHub Copilot** | Partner ($100) | Ubuntu/Windows GitHub Actions CI matrix + Copilot repository instruction manual | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) |
+| **Best Use of GitHub Copilot** | Partner ($100) | Deep repository manual + 3 Copilot Prompt Templates (`.github/prompts/`) + `slothd copilot` CLI inspector + PR Template + Dual CI Matrix | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) |
 | **Best Use of Entire** | Partner ($100) | Entire CLI 0.11.6 Git checkpoint tracking and Antigravity AI agent lifecycle hooks | [`.entire/settings.json`](.entire/settings.json) & [`.agents/hooks.json`](.agents/hooks.json) |
+
+---
+
+## 🤖 GitHub Copilot Developer Experience (`slothd copilot`)
+
+`slothd` features an authoritative GitHub Copilot integration designed to guide AI pair-programming:
+
+1. **Repository Instructions ([`.github/copilot-instructions.md`](.github/copilot-instructions.md)):**
+   Deep instructions teaching Copilot our 5 core commandments:
+   - *Air-Gapped & Local-First*: Never suggest un-gated cloud LLMs; all classification defaults to local Gemma 3 via Ollama.
+   - *100% Reversibility*: All file moves must write SQLite `OperationLog` entries with batch IDs for `slothd undo`.
+   - *2-Stage Funnel*: Prior Labs TabPFN runs first for sub-millisecond clutter pruning before heavy models wake up.
+   - *Model Presentation*: Always present model as "Gemma 3".
+   - *Claude Code Aesthetics*: Rich guide rails, unicode glyphs, and interactive suggested next actions.
+
+2. **Copilot Prompt Library ([`.github/prompts/`](.github/prompts/)):**
+   Reusable prompt templates triggered directly in VS Code / GitHub Copilot Chat:
+   - **`/new-sorter`**: Implement custom category sorting rules with date-hierarchy and collision safety.
+   - **`/audit-privacy`**: Audit files or pull requests for air-gap compliance and network leak prevention.
+   - **`/tabpfn-feature`**: Engineer new tabular filesystem metadata features for Prior Labs TabPFN.
+
+3. **CLI Copilot Inspector (`slothd copilot`):**
+   Run `slothd copilot` or pick it from the interactive menu to view active Copilot rules, prompt templates, and air-gap verification.
+
+4. **Copilot PR Template ([`.github/pull_request_template.md`](.github/pull_request_template.md)):**
+   Enforces Copilot review checklists on privacy, Sentry tracing, and test coverage before merging.
 
 ---
 

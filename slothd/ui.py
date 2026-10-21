@@ -920,6 +920,7 @@ def interactive_picker(version: str, *, show_banner: bool = True) -> str | None:
         {"name": "  ⏳  Start idle daemon           Run in background, activate when idle", "value": "daemon"},
         {"name": "  🌐  Launch web dashboard        Start the FastAPI glassmorphic UI", "value": "serve"},
         {"name": "  🎙  Voice briefing              Hear the sloth summarize your files", "value": "briefing"},
+        {"name": "  🤖  GitHub Copilot              Inspect Copilot rules & prompt library", "value": "copilot"},
         Separator(line=f"  {'─' * 56}"),
         {"name": f"  {G.err}  Exit                        Quit interactive session", "value": "exit"},
     ]
@@ -934,6 +935,7 @@ def interactive_picker(version: str, *, show_banner: bool = True) -> str | None:
         "daemon": "Start idle daemon",
         "serve": "Launch web dashboard",
         "briefing": "Voice briefing",
+        "copilot": "GitHub Copilot",
         "exit": "Exit",
     }
 

@@ -166,6 +166,10 @@ def _run_interactive(ctx: click.Context) -> None:
                     ui.header("briefing", __version__)
                     ctx.invoke(briefing)
 
+                elif choice == "copilot":
+                    ui.header("copilot", __version__)
+                    ctx.invoke(copilot)
+
             except KeyboardInterrupt:
                 console.print(f"\n  {ui.G.rail_end} [muted]Stopped.[/]\n")
             except Exception as exc:  # noqa: BLE001
@@ -675,6 +679,67 @@ def serve(ctx: click.Context, host: str, port: int) -> None:
         reload=True,
         log_level="info" if ctx.obj["verbose"] else "warning",
     )
+
+
+# --------------------------------------------------------------------------- #
+# copilot
+# --------------------------------------------------------------------------- #
+
+
+@cli.command()
+@click.pass_context
+def copilot(ctx: click.Context) -> None:
+    """Inspect GitHub Copilot repository guidelines and prompt library."""
+    ui.step_open("GitHub Copilot Integration & Guidelines")
+
+    inst_path = Path(".github/copilot-instructions.md")
+    prompts_dir = Path(".github/prompts")
+
+    inst_exists = inst_path.exists()
+    inst_lines = len(inst_path.read_text(encoding="utf-8").splitlines()) if inst_exists else 0
+    prompt_files = list(prompts_dir.glob("*.prompt.md")) if prompts_dir.exists() else []
+
+    ui.kv([
+        ("Repository Rules", f"[accent]{ui.tilde(inst_path)}[/] ({inst_lines} lines active)" if inst_exists else "[warn]missing[/]"),
+        ("Air-Gap Policy", "[ok]Local-First (Gemma 3 default · Zero un-gated cloud calls)[/]"),
+        ("CI Pipeline", "[ok]Ubuntu + Windows Matrix (.github/workflows/ci.yml)[/]"),
+        ("Prompt Library", f"[accent]{len(prompt_files)} prompt templates ready[/]"),
+    ])
+    console.print()
+
+    if prompt_files:
+        ui.section("Available Copilot Prompt Templates")
+        rows = []
+        for pf in sorted(prompt_files):
+            prompt_name = pf.name.replace(".prompt.md", "")
+            desc = "Reusable Copilot prompt"
+            try:
+                content = pf.read_text(encoding="utf-8")
+                for line in content.splitlines():
+                    if line.startswith("description:"):
+                        desc = line.split("description:", 1)[1].strip().strip('"\'')
+                        break
+            except Exception:
+                pass
+            rows.append((f"/{prompt_name}", desc))
+
+        width = max(len(name) for name, _ in rows)
+        for name, desc in rows:
+            console.print(
+                Text.assemble(
+                    ("  ", ""),
+                    (ui.G.arrow, "ok"),
+                    (" ", ""),
+                    (name.ljust(width + 2), "accent"),
+                    (desc, "muted"),
+                )
+            )
+
+    ui.step_close()
+    ui.next_steps([
+        ("slothd scan .", "inspect repository files with current rules"),
+        ("slothd predict .", "analyze repository with Prior Labs TabPFN"),
+    ])
 
 
 if __name__ == "__main__":

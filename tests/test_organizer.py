@@ -292,3 +292,15 @@ class TestNextStepsExecution:
             args = mock_main.call_args.kwargs.get("args") or mock_main.call_args[1].get("args")
             assert args == ["scan", "test_workspace/messy_inbox", "--max-size", "10"]
 
+    def test_copilot_command_runs(self) -> None:
+        """slothd copilot executes and inspects prompt files cleanly."""
+        from click.testing import CliRunner
+
+        from slothd.cli import cli
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["copilot"])
+        assert result.exit_code == 0
+        assert "GitHub Copilot" in result.output
+        assert "Prompt Library" in result.output
+
