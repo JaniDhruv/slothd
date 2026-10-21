@@ -1,7 +1,9 @@
-from pathlib import Path
 import struct
 import zlib
+from pathlib import Path
+
 import pymupdf
+
 
 def make_png(width=100, height=100):
     raw_data = b"".join(b"\x00" + b"\x10\xb9\x81" * width for _ in range(height))

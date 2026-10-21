@@ -38,7 +38,7 @@ class TestNoInfiniteNesting:
         db_path = small_dir / ".ops.db"
         ops_log = OperationLog(db_path)
 
-        executed = execute_moves(moves, ops_log, "test-batch")
+        execute_moves(moves, ops_log, "test-batch")
 
         # At least one marker should exist in a category subdirectory
         markers = list(small_dir.rglob(SLOTHD_MARKER))
@@ -240,9 +240,10 @@ class TestDaemonSchedulerIntegration:
         tmp_path: Path,
     ) -> None:
         """When use_ai=True, the daemon classify_batch is called."""
+        from datetime import datetime
+
         from slothd.daemon.scheduler import _run_organize_cycle
         from slothd.engine.scanner import ScannedFile
-        from datetime import datetime
 
         fake_file = ScannedFile(
             path=tmp_path / "test.txt",
@@ -313,9 +314,10 @@ class TestDaemonSchedulerIntegration:
         tmp_path: Path,
     ) -> None:
         """Without an explicit output_dir, the first target_dir is the base."""
+        from datetime import datetime
+
         from slothd.daemon.scheduler import _run_organize_cycle
         from slothd.engine.scanner import ScannedFile
-        from datetime import datetime
 
         fake_file = ScannedFile(
             path=tmp_path / "test.txt",
