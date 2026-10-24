@@ -45,6 +45,7 @@ def _run_organize_cycle(
     ops_log = OperationLog(ops_db_path)
 
     try:
+        active_hashes = ops_log.get_active_hashes()
         all_files = []
         for target_dir in target_dirs:
             if target_dir.is_dir():
@@ -52,6 +53,7 @@ def _run_organize_cycle(
                     target_dir,
                     max_file_size_mb=max_file_size_mb,
                     skip_organized=True,  # Never re-process organized files
+                    known_hashes=active_hashes,
                 )
                 all_files.extend(files)
 
@@ -83,7 +85,7 @@ def _run_organize_cycle(
         # organization root so all files consolidate under one tree.
         base_dir = output_dir or target_dirs[0]
 
-        moves = plan_moves(batch, base_dir)
+        moves = plan_moves(batch, base_dir, ops_log=ops_log)
 
         if not moves:
             logger.info("All files are already organized. 💤")

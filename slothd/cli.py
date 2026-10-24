@@ -321,9 +321,17 @@ def organize(
     )
     console.print()
 
+    active_hashes: set[str] = set()
+    try:
+        temp_ops = OperationLog(config.ops_db_path)
+        active_hashes = temp_ops.get_active_hashes()
+        temp_ops.close()
+    except Exception:
+        pass
+
     # Step 1: Scan
     with ui.step("Scanning") as s:
-        files = scan_directory(directory, max_file_size_mb=max_size)
+        files = scan_directory(directory, max_file_size_mb=max_size, known_hashes=active_hashes)
         s.done(f"Scanned {ui.plural(len(files), 'file')}")
 
     if not files:

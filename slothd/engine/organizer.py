@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS operations (
     new_path    TEXT    NOT NULL,
     operation   TEXT    NOT NULL DEFAULT 'move',
     created_at  TEXT    NOT NULL,
-    undone      INTEGER NOT NULL DEFAULT 0
+    undone      INTEGER NOT NULL DEFAULT 0,
+    file_hash   TEXT,
+    status      TEXT    NOT NULL DEFAULT 'completed'
 );
 """
 
@@ -51,6 +53,8 @@ class OperationLog:
     """SQLite-backed log of all file operations for undo/rollback.
 
     Every move is recorded so it can be reversed with `slothd undo`.
+    Uses write-ahead intent logging and content hash tracking for crash-safe
+    reconciliation and deduplication.
     """
 
     def __init__(self, db_path: Path) -> None:
@@ -60,7 +64,123 @@ class OperationLog:
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.conn.execute(CREATE_OPS_TABLE)
         self.conn.execute(CREATE_BATCH_TABLE)
+        # Migrate schema dynamically if existing database lacks new columns
+        cursor = self.conn.execute("PRAGMA table_info(operations);")
+        columns = {row[1] for row in cursor.fetchall()}
+        if "file_hash" not in columns:
+            self.conn.execute("ALTER TABLE operations ADD COLUMN file_hash TEXT;")
+        if "status" not in columns:
+            self.conn.execute("ALTER TABLE operations ADD COLUMN status TEXT NOT NULL DEFAULT 'completed';")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_ops_file_hash ON operations(file_hash);")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_ops_status ON operations(status);")
         self.conn.commit()
+        # Run startup reconciliation to close any crash windows
+        self.reconcile_operations()
+
+    def log_operation_intent(
+        self,
+        batch_id: str,
+        old_path: Path,
+        new_path: Path,
+        file_hash: str | None = None,
+        operation: str = "move",
+    ) -> int:
+        """Write-ahead commit point: log intent with status='pending' before executing move."""
+        cursor = self.conn.execute(
+            "INSERT INTO operations (batch_id, old_path, new_path, operation, created_at, file_hash, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, 'pending')",
+            (batch_id, str(old_path), str(new_path), operation, datetime.now().isoformat(), file_hash),
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def complete_operation(self, op_id: int, final_dest: Path | None = None) -> None:
+        """Mark a pending operation as completed after disk move succeeds."""
+        if final_dest:
+            self.conn.execute(
+                "UPDATE operations SET status = 'completed', new_path = ? WHERE id = ?",
+                (str(final_dest), op_id),
+            )
+        else:
+            self.conn.execute(
+                "UPDATE operations SET status = 'completed' WHERE id = ?",
+                (op_id,),
+            )
+        self.conn.commit()
+
+    def abort_operation(self, op_id: int) -> None:
+        """Mark a pending operation as aborted if filesystem move failed."""
+        self.conn.execute("UPDATE operations SET status = 'aborted' WHERE id = ?", (op_id,))
+        self.conn.commit()
+
+    def reconcile_operations(self) -> int:
+        """Startup reconciliation pass for crash consistency.
+
+        Inspects operations left in 'pending' status:
+        - If new_path exists: move completed before crash -> mark 'completed'.
+        - If old_path exists and new_path doesn't: move never happened -> mark 'aborted'.
+        - If neither exists: mark 'aborted'.
+
+        Returns the number of reconciled operations.
+        """
+        cursor = self.conn.execute(
+            "SELECT id, old_path, new_path FROM operations WHERE status = 'pending'"
+        )
+        pending = cursor.fetchall()
+        reconciled = 0
+        for op_id, old_path_str, new_path_str in pending:
+            old_path = Path(old_path_str)
+            new_path = Path(new_path_str)
+            try:
+                if new_path.exists():
+                    self.conn.execute("UPDATE operations SET status = 'completed' WHERE id = ?", (op_id,))
+                    reconciled += 1
+                    logger.info("Reconciled completed move after crash: %s -> %s", old_path, new_path)
+                elif old_path.exists():
+                    self.conn.execute("UPDATE operations SET status = 'aborted' WHERE id = ?", (op_id,))
+                    reconciled += 1
+                    logger.info("Reconciled aborted move after crash: %s", old_path)
+                else:
+                    self.conn.execute("UPDATE operations SET status = 'aborted' WHERE id = ?", (op_id,))
+                    reconciled += 1
+            except OSError:
+                continue
+        if reconciled:
+            self.conn.commit()
+        return reconciled
+
+    def has_active_hash(self, file_hash: str) -> bool:
+        """Check if a file with this SHA-256 hash has an active organized destination."""
+        if not file_hash:
+            return False
+        cursor = self.conn.execute(
+            "SELECT new_path FROM operations "
+            "WHERE file_hash = ? AND undone = 0 AND status = 'completed' LIMIT 1",
+            (file_hash,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return False
+        try:
+            return Path(row[0]).exists()
+        except OSError:
+            return False
+
+    def get_active_hashes(self) -> set[str]:
+        """Return all SHA-256 hashes of actively organized files whose destinations exist."""
+        cursor = self.conn.execute(
+            "SELECT file_hash, new_path FROM operations "
+            "WHERE file_hash IS NOT NULL AND undone = 0 AND status = 'completed'"
+        )
+        active: set[str] = set()
+        for f_hash, dest_path_str in cursor.fetchall():
+            if f_hash:
+                try:
+                    if Path(dest_path_str).exists():
+                        active.add(f_hash)
+                except OSError:
+                    pass
+        return active
 
     def log_operation(
         self,
@@ -68,14 +188,17 @@ class OperationLog:
         old_path: Path,
         new_path: Path,
         operation: str = "move",
-    ) -> None:
+        file_hash: str | None = None,
+        status: str = "completed",
+    ) -> int:
         """Log a single file operation."""
-        self.conn.execute(
-            "INSERT INTO operations (batch_id, old_path, new_path, operation, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (batch_id, str(old_path), str(new_path), operation, datetime.now().isoformat()),
+        cursor = self.conn.execute(
+            "INSERT INTO operations (batch_id, old_path, new_path, operation, created_at, file_hash, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (batch_id, str(old_path), str(new_path), operation, datetime.now().isoformat(), file_hash, status),
         )
         self.conn.commit()
+        return cursor.lastrowid
 
     def log_batch(self, batch_id: str, file_count: int) -> None:
         """Log a batch of operations."""
@@ -96,14 +219,14 @@ class OperationLog:
     def get_batch_operations(self, batch_id: str) -> list[tuple[str, str]]:
         """Get all operations in a batch as (old_path, new_path) tuples."""
         cursor = self.conn.execute(
-            "SELECT old_path, new_path FROM operations WHERE batch_id = ? AND undone = 0 ORDER BY id ASC",
+            "SELECT old_path, new_path FROM operations WHERE batch_id = ? AND undone = 0 AND status = 'completed' ORDER BY id ASC",
             (batch_id,),
         )
         return cursor.fetchall()
 
     def mark_batch_undone(self, batch_id: str) -> None:
         """Mark all operations in a batch as undone."""
-        self.conn.execute("UPDATE operations SET undone = 1 WHERE batch_id = ?", (batch_id,))
+        self.conn.execute("UPDATE operations SET undone = 1, status = 'undone' WHERE batch_id = ?", (batch_id,))
         self.conn.execute("UPDATE batches SET undone = 1 WHERE batch_id = ?", (batch_id,))
         self.conn.commit()
 
@@ -127,7 +250,7 @@ class OperationLog:
     def get_stats(self) -> dict:
         """Get overall operation statistics."""
         total_ops = self.conn.execute(
-            "SELECT COUNT(*) FROM operations WHERE undone = 0"
+            "SELECT COUNT(*) FROM operations WHERE undone = 0 AND status = 'completed'"
         ).fetchone()[0]
         total_batches = self.conn.execute(
             "SELECT COUNT(*) FROM batches WHERE undone = 0"
@@ -160,6 +283,7 @@ class PlannedMove:
     file_name: str
     category: str
     reason: str  # Human-readable explanation
+    file_hash: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -168,6 +292,7 @@ class PlannedMove:
             "file_name": self.file_name,
             "category": self.category,
             "reason": self.reason,
+            "file_hash": self.file_hash,
         }
 
 
@@ -265,20 +390,33 @@ def resolve_collision(dest: Path) -> Path:
 def plan_moves(
     files: list[ScannedFile],
     base_dir: Path,
+    ops_log: OperationLog | None = None,
 ) -> list[PlannedMove]:
     """Plan all file moves without executing them (dry-run).
 
     Args:
         files: List of classified ScannedFile objects.
         base_dir: Root directory under which organized output is placed.
+        ops_log: Optional OperationLog to check against already-organized content hashes.
 
     Returns:
         List of PlannedMove objects describing what would happen.
     """
     moves: list[PlannedMove] = []
     used_destinations: set[str] = set()
+    active_hashes = ops_log.get_active_hashes() if ops_log is not None else set()
 
     for f in files:
+        # Content-hash skip: if this exact file content has already been organized
+        # and currently lives at its organized destination, skip it.
+        if f.sha256 and f.sha256 in active_hashes:
+            logger.info(
+                "Skipping %s — file content (%s) is already organized at destination",
+                f.name,
+                f.sha256[:10],
+            )
+            continue
+
         dest = compute_destination(f, base_dir)
 
         # Avoid planning two files to the same destination
@@ -307,6 +445,7 @@ def plan_moves(
                 file_name=f.name,
                 category=category,
                 reason=reason,
+                file_hash=f.sha256,
             )
         )
 
@@ -320,7 +459,10 @@ def execute_moves(
 ) -> list[PlannedMove]:
     """Execute planned moves — actually move the files.
 
-    Every operation is logged to SQLite for undo capability.
+    Uses a two-phase commit pattern:
+    1. Log intent with status='pending' in SQLite WAL (Commit Point).
+    2. Execute filesystem move.
+    3. Mark operation status='completed' in SQLite WAL.
 
     Args:
         moves: List of planned moves to execute.
@@ -333,6 +475,7 @@ def execute_moves(
     executed: list[PlannedMove] = []
 
     for move in moves:
+        op_id = None
         try:
             # Resolve any collisions with files that already exist on disk
             final_dest = resolve_collision(move.destination)
@@ -340,11 +483,19 @@ def execute_moves(
             # Create destination directory
             final_dest.parent.mkdir(parents=True, exist_ok=True)
 
-            # Move the file
+            # Phase 1: Write intent before moving (Commit Point)
+            op_id = ops_log.log_operation_intent(
+                batch_id=batch_id,
+                old_path=move.source,
+                new_path=final_dest,
+                file_hash=move.file_hash,
+            )
+
+            # Phase 2: Move the file
             shutil.move(str(move.source), str(final_dest))
 
-            # Log for undo
-            ops_log.log_operation(batch_id, move.source, final_dest)
+            # Phase 3: Mark completed
+            ops_log.complete_operation(op_id, final_dest)
 
             # Update the planned move with the actual destination
             move.destination = final_dest
@@ -354,6 +505,8 @@ def execute_moves(
 
         except OSError as e:
             logger.error("Failed to move %s: %s", move.source, e)
+            if op_id is not None:
+                ops_log.abort_operation(op_id)
 
     # Log the batch
     ops_log.log_batch(batch_id, len(executed))

@@ -167,6 +167,11 @@ class ScannedFile:
         return self.extension.lower() in PDF_EXTENSIONS
 
     @property
+    def sha256(self) -> str:
+        """Alias for content_hash."""
+        return self.content_hash
+
+    @property
     def size_mb(self) -> float:
         """File size in megabytes."""
         return self.size_bytes / (1024 * 1024)
@@ -260,6 +265,7 @@ def scan_directory(
     recursive: bool = True,
     skip_hidden: bool = True,
     skip_organized: bool = True,
+    known_hashes: set[str] | None = None,
 ) -> list[ScannedFile]:
     """Walk a directory and scan all files.
 
@@ -269,6 +275,7 @@ def scan_directory(
         recursive: Whether to descend into subdirectories.
         skip_hidden: Whether to skip hidden files/directories (starting with '.').
         skip_organized: Whether to skip directories already organized by slothd.
+        known_hashes: Optional set of SHA-256 hashes of files already organized.
 
     Returns:
         List of ScannedFile objects for all discovered files.
@@ -319,6 +326,9 @@ def scan_directory(
 
         try:
             scanned = scan_file(item)
+            if skip_organized and known_hashes and scanned.sha256 in known_hashes:
+                logger.debug("Skipping file whose content hash is already organized: %s", item.name)
+                continue
             files.append(scanned)
         except (PermissionError, OSError):
             # Skip files we can't read

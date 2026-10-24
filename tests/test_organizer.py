@@ -304,3 +304,106 @@ class TestNextStepsExecution:
         assert "GitHub Copilot" in result.output
         assert "Prompt Library" in result.output
 
+
+class TestCrashConsistencyAndHashMatching:
+    """Tests for two-phase commit intent, crash reconciliation, and hash deduplication."""
+
+    def test_crash_reconciliation_marks_completed_if_dest_exists(self, tmp_path: Path) -> None:
+        """If move succeeded on disk before crash, reconciliation marks it completed."""
+        db_path = tmp_path / "ops.db"
+        ops = OperationLog(db_path)
+
+        old_file = tmp_path / "old.txt"
+        new_file = tmp_path / "new.txt"
+        new_file.write_text("already moved")
+
+        op_id = ops.log_operation_intent("batch-1", old_file, new_file, file_hash="hash123")
+        ops.close()
+
+        # Re-open database (triggers reconcile_operations)
+        ops_reopened = OperationLog(db_path)
+        row = ops_reopened.conn.execute(
+            "SELECT status FROM operations WHERE id = ?", (op_id,)
+        ).fetchone()
+        assert row[0] == "completed"
+        ops_reopened.close()
+
+    def test_crash_reconciliation_marks_aborted_if_source_still_exists(self, tmp_path: Path) -> None:
+        """If move never executed before crash, reconciliation marks it aborted."""
+        db_path = tmp_path / "ops.db"
+        ops = OperationLog(db_path)
+
+        old_file = tmp_path / "old.txt"
+        old_file.write_text("still here")
+        new_file = tmp_path / "new.txt"
+
+        op_id = ops.log_operation_intent("batch-1", old_file, new_file, file_hash="hash456")
+        ops.close()
+
+        # Re-open database (triggers reconcile_operations)
+        ops_reopened = OperationLog(db_path)
+        row = ops_reopened.conn.execute(
+            "SELECT status FROM operations WHERE id = ?", (op_id,)
+        ).fetchone()
+        assert row[0] == "aborted"
+        ops_reopened.close()
+
+    def test_hash_matching_skips_restored_files(self, tmp_path: Path) -> None:
+        """If an organized file is restored from backup, slothd skips it by SHA-256 hash."""
+        db_path = tmp_path / "ops.db"
+        ops_log = OperationLog(db_path)
+
+        inbox = tmp_path / "inbox"
+        inbox.mkdir()
+        original_doc = inbox / "invoice_q3.pdf"
+        original_doc.write_bytes(b"%PDF-1.4 tax invoice content 98765")
+
+        # 1. Scan and execute moves
+        scanned = scan_directory(inbox)
+        moves = plan_moves(scanned, tmp_path)
+        executed = execute_moves(moves, ops_log, "batch-initial")
+        assert len(executed) == 1
+        assert not original_doc.exists()
+        organized_dest = executed[0].destination
+        assert organized_dest.exists()
+
+        # 2. Simulate restoring the same file back into inbox from backup
+        original_doc.write_bytes(b"%PDF-1.4 tax invoice content 98765")
+
+        # 3. plan_moves with ops_log should skip it because content hash matches active file
+        rescan = scan_directory(inbox, skip_organized=True)
+        assert len(rescan) == 1
+        planned_again = plan_moves(rescan, tmp_path, ops_log=ops_log)
+        assert len(planned_again) == 0, "Restored file was not skipped by content hash!"
+
+        # 4. scan_directory with known_hashes should also skip it
+        active_hashes = ops_log.get_active_hashes()
+        scan_with_hashes = scan_directory(inbox, skip_organized=True, known_hashes=active_hashes)
+        assert len(scan_with_hashes) == 0, "scan_directory did not skip restored file by known_hashes!"
+
+        ops_log.close()
+
+    def test_hash_skipping_clears_after_undo(self, tmp_path: Path) -> None:
+        """When a batch is undone, its hash is no longer considered actively organized."""
+        db_path = tmp_path / "ops.db"
+        ops_log = OperationLog(db_path)
+
+        inbox = tmp_path / "inbox"
+        inbox.mkdir()
+        doc = inbox / "notes.txt"
+        doc.write_text("important meeting notes")
+
+        scanned = scan_directory(inbox)
+        content_hash = scanned[0].content_hash
+        moves = plan_moves(scanned, tmp_path)
+        execute_moves(moves, ops_log, "batch-1")
+
+        assert ops_log.has_active_hash(content_hash) is True
+
+        # Undo the batch
+        undo_last_batch(ops_log)
+
+        # Hash is now inactive
+        assert ops_log.has_active_hash(content_hash) is False
+        ops_log.close()
+
