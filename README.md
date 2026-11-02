@@ -4,6 +4,7 @@
   <p><b>A local-first AI file organizer that waits until your computer is idle, understands what your files mean, and lets you undo every move.</b></p>
 
   <p align="center">
+    <a href="https://dev.to/challenges/hacktoberfest-week3-2026-10-19"><img src="https://img.shields.io/badge/Hacktoberfest%202026%20Winner-Best%20Use%20of%20GitHub%20Copilot-8957e5?style=flat-square&logo=githubcopilot&logoColor=white" alt="Hacktoberfest 2026 Winner - Best Use of GitHub Copilot"></a>
     <a href="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml"><img src="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
     <img src="https://img.shields.io/github/commit-activity/w/JaniDhruv/slothd" alt="GitHub commit activity">
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white" alt="Python 3.10+"></a>
@@ -14,14 +15,27 @@
   </p>
 
   <p>
-    <b>Built for the <a href="https://dev.to/challenges/hacktoberfest-week3-2026-10-19">Hacktoberfest 2026 Week 3 “Slow and Steady” challenge</a>.</b>
+    🏆 <b>Winner: Hacktoberfest 2026 Challenge — Best Use of GitHub Copilot</b> 🏆<br>
+    <i>Awarded for winning Best Use of GitHub Copilot in the DEV Community & GitHub <a href="https://dev.to/challenges/hacktoberfest-week3-2026-10-19">Hacktoberfest 2026 Challenge</a>!</i>
   </p>
 </div>
 
 ---
 
+## 🏆 Award & Recognition
+
+<div align="center">
+  <img src="docs/hacktoberfest-2026-copilot-winner-badge.png" alt="Hacktoberfest 2026 Challenge: Best Use of GitHub Copilot Badge" width="520">
+</div>
+
+> 🎉 **Winner: Best Use of GitHub Copilot** in the [Hacktoberfest 2026 Challenge (Week 3: Slow and Steady)](https://dev.to/challenges/hacktoberfest-week3-2026-10-19)!  
+> Awarded by the DEV Community and GitHub judging panel for comprehensive AI-assisted developer experience: repository-level [`.github/copilot-instructions.md`](.github/copilot-instructions.md), structured prompt templates ([`.github/prompts/`](.github/prompts)), terminal inspection via `slothd copilot`, and cross-OS CI automation across Windows and Ubuntu.
+
+---
+
 ## 📑 Table of Contents
 
+- [🏆 Award & Recognition](#-award--recognition)
 - [🎯 The One-Minute Pitch](#-the-one-minute-pitch)
   - [😴 The Lazy Payoff](#-the-lazy-payoff)
 - [💡 Why This is Different](#-why-this-is-different)
@@ -388,7 +402,9 @@ The visible Ollama event in the Sentry project was a **handled test-path failure
 
 Traced operations include `scanner.scan_directory`, `ai.classify`, `ai.classify_batch`, `organizer.preview`, `organizer.execute`, `organizer.undo`, and `search.query`. This gives maintainers both exception context and a transaction-shaped view of the work users care about.
 
-## 🛠️ Developer experience & AI tooling
+## 🛠️ Developer experience & AI tooling (🏆 Winner: Best Use of GitHub Copilot)
+
+> 🥇 **Awarded Winner for Best Use of GitHub Copilot in the Hacktoberfest 2026 Challenge!**
 
 - [`.github/copilot-instructions.md`](.github/copilot-instructions.md) encodes the project’s privacy, reversibility, model-presentation, TabPFN, and UI rules.
 - [`.github/prompts/new-sorter.prompt.md`](.github/prompts/new-sorter.prompt.md) helps add collision-safe category rules.
@@ -439,7 +455,7 @@ Project capabilities mapped to challenge tracks and repository implementations:
 | Web grounding (opt-in) | SerpApi entity search in [`slothd/integrations/serpapi_client.py`](slothd/integrations/serpapi_client.py), enabled only with `--enrich-online` |
 | Observable behavior | Sentry spans in [`slothd/integrations/sentry_tracing.py`](slothd/integrations/sentry_tracing.py) |
 | Memorable user experience | Sloth-themed Rich UI, interactive next actions, and voice briefings |
-| Strong developer story | Copilot prompt library, PR checklist, `slothd copilot`, CI, and Entire provenance |
+| Strong developer story (🏆 Winner: Best Use of GitHub Copilot) | Copilot prompt library, PR checklist, `slothd copilot`, cross-OS CI matrix, and Entire provenance |
 
 ## ⏱️ 5-Minute evaluation walkthrough
 
