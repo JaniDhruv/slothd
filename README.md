@@ -4,7 +4,7 @@
   <p><b>A local-first AI file organizer that waits until your computer is idle, understands what your files mean, and lets you undo every move.</b></p>
 
   <p align="center">
-    <a href="https://dev.to/challenges/hacktoberfest-week3-2026-10-19"><img src="https://img.shields.io/badge/Hacktoberfest%202026%20Winner-Best%20Use%20of%20GitHub%20Copilot-8957e5?style=flat-square&logo=githubcopilot&logoColor=white" alt="Hacktoberfest 2026 Winner - Best Use of GitHub Copilot"></a>
+    <a href="https://dev.to/devteam/congrats-to-the-hacktoberfest-open-source-ai-challenge-week-3-slow-and-steady-winners-3e4a"><img src="https://img.shields.io/badge/Hacktoberfest%202026%20Winner-Best%20Use%20of%20GitHub%20Copilot-8957e5?style=flat-square&logo=githubcopilot&logoColor=white" alt="Hacktoberfest 2026 Winner - Best Use of GitHub Copilot"></a>
     <a href="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml"><img src="https://github.com/JaniDhruv/slothd/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
     <img src="https://img.shields.io/github/commit-activity/w/JaniDhruv/slothd" alt="GitHub commit activity">
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white" alt="Python 3.10+"></a>
@@ -16,7 +16,7 @@
 
   <p>
     🏆 <b>Winner: Hacktoberfest 2026 Challenge — Best Use of GitHub Copilot</b> 🏆<br>
-    <i>Awarded for winning Best Use of GitHub Copilot in the DEV Community & GitHub <a href="https://dev.to/challenges/hacktoberfest-week3-2026-10-19">Hacktoberfest 2026 Challenge</a>!</i>
+    <i>Selected by the DEV Community & GitHub judging panel — read the <a href="https://dev.to/devteam/congrats-to-the-hacktoberfest-open-source-ai-challenge-week-3-slow-and-steady-winners-3e4a">official winners announcement</a>!</i>
   </p>
 </div>
 
@@ -28,8 +28,10 @@
   <img src="docs/hacktoberfest-2026-copilot-winner-badge.png" alt="Hacktoberfest 2026 Challenge: Best Use of GitHub Copilot Badge" width="520">
 </div>
 
-> 🎉 **Winner: Best Use of GitHub Copilot** in the [Hacktoberfest 2026 Challenge (Week 3: Slow and Steady)](https://dev.to/challenges/hacktoberfest-week3-2026-10-19)!  
+> 🎉 **Winner: Best Use of GitHub Copilot** in the [Hacktoberfest 2026 Challenge (Week 3: Slow and Steady)](https://dev.to/devteam/congrats-to-the-hacktoberfest-open-source-ai-challenge-week-3-slow-and-steady-winners-3e4a)!  
 > Awarded by the DEV Community and GitHub judging panel for comprehensive AI-assisted developer experience: repository-level [`.github/copilot-instructions.md`](.github/copilot-instructions.md), structured prompt templates ([`.github/prompts/`](.github/prompts)), terminal inspection via `slothd copilot`, and cross-OS CI automation across Windows and Ubuntu.
+> 
+> 📣 *Read the [official DEV announcement post](https://dev.to/devteam/congrats-to-the-hacktoberfest-open-source-ai-challenge-week-3-slow-and-steady-winners-3e4a).*
 
 ---
 
@@ -404,7 +406,7 @@ Traced operations include `scanner.scan_directory`, `ai.classify`, `ai.classify_
 
 ## 🛠️ Developer experience & AI tooling (🏆 Winner: Best Use of GitHub Copilot)
 
-> 🥇 **Awarded Winner for Best Use of GitHub Copilot in the Hacktoberfest 2026 Challenge!**
+> 🥇 **Awarded Winner for Best Use of GitHub Copilot in the [Hacktoberfest 2026 Challenge](https://dev.to/devteam/congrats-to-the-hacktoberfest-open-source-ai-challenge-week-3-slow-and-steady-winners-3e4a)!**
 
 - [`.github/copilot-instructions.md`](.github/copilot-instructions.md) encodes the project’s privacy, reversibility, model-presentation, TabPFN, and UI rules.
 - [`.github/prompts/new-sorter.prompt.md`](.github/prompts/new-sorter.prompt.md) helps add collision-safe category rules.
